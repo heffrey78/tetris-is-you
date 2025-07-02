@@ -1,0 +1,30 @@
+export declare class Game {
+    private canvas;
+    private renderer;
+    private ruleEngine;
+    private wordQueue;
+    private gameLogic;
+    private uiManager;
+    private gameLogger;
+    private gameLoop;
+    private lastTime;
+    private fps;
+    private frameTime;
+    private isRunning;
+    private isPaused;
+    private gameState;
+    constructor(canvas: HTMLCanvasElement);
+    private setupCanvas;
+    private initializeGameState;
+    private createEmptyPlayfield;
+    start(): void;
+    stop(): void;
+    pause(): void;
+    private loop;
+    private update;
+    private render;
+    handleKeyDown(event: KeyboardEvent): void;
+    handleKeyUp(event: KeyboardEvent): void;
+    private testLineClear;
+    restart(): void;
+}

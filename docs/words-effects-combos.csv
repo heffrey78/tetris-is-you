@@ -1,0 +1,40 @@
+Category,Type,Name,Description,Visual_Effect,Trigger,Implementation_Status
+Noun,Subject,BLOCK,Generic game blocks,N/A,N/A,Implemented
+Noun,Subject,WALL,Boundary walls,N/A,N/A,Implemented
+Noun,Subject,LINE,Complete horizontal lines,N/A,N/A,Planned
+Noun,Subject,PIECE,Current falling piece,N/A,N/A,Planned
+Property,Destruction,BOMB,Explodes when line cleared destroying 3x3 area,Pulsing glow,Line clear,Implemented
+Property,Destruction,LIGHTNING,Shoots lightning bolt across row when placed,Sparking effect,Block placement,Implemented
+Property,Destruction,ACID,Dissolves blocks below over time,Dissolving animation,Time-based,Implemented
+Property,Protection,SHIELD,Creates indestructible barrier blocking all effects,Barrier glow,Continuous,Implemented
+Property,Protection,FREEZE,Stops time - all pieces pause for 3 seconds,Ice crystal effect,Block appearance,Implemented
+Property,Movement,MAGNET,Pulls all nearby blocks toward it,Magnetic field,Block placement,Implemented
+Property,Movement,TELEPORT,Randomly swaps positions with another block,Portal effect,Line clear,Implemented
+Property,Creation,MULTIPLY,Creates copy in random empty spot,Duplication effect,Line clear,Implemented
+Property,Creation,SPAWN,Creates new random blocks above every 5 seconds,Birth animation,Time-based,Implemented
+Property,Transformation,TRANSFORM,Changes adjacent blocks to match its type,Morphing effect,Block placement,Implemented
+Property,Transformation,HEAL,Repairs damaged blocks in 5x5 area,Healing glow,Continuous,Implemented
+Property,Utility,REVEAL,Shows ghost preview of next 3 pieces,Insight glow,Continuous,Implemented
+Property,Utility,SLOW,Reduces falling speed of all pieces by 50%,Time distortion,While active,Implemented
+Property,Basic,SOLID,Blocks are solid and block movement,Normal opacity,Continuous,Implemented
+Property,Basic,GHOST,Blocks are transparent and passable,30% opacity,Continuous,Implemented
+Property,Color,BLUE,Changes blocks to blue color,Blue coloring (RGB: 0 100 255),Continuous,Implemented
+Property,Color,RED,Changes blocks to red color,Red coloring (RGB: 255 0 0),Continuous,Implemented
+Property,Color,GREEN,Changes blocks to green color,Green coloring (RGB: 0 255 0),Continuous,Implemented
+Property,Special,WIN,Touching this block wins the game,Victory glow with pulse,Contact,Implemented
+Property,Special,LOSE,Touching this block ends the game,Danger animation,Contact,Implemented
+Property,State,MELT,Blocks disappear after short time,Dissolving with 50% opacity,Time-based,Implemented
+Rule_Type,Lines_Cleared,Effect_Name,Effect_Description,Word_Consumption,Example
+Rule_Modification,1,Property Change,Changes the property of the primary rule,1 word,BLOCK IS SOLID → BLOCK IS BOMB
+Rule_Modification,2,Noun Change,Changes the noun (subject) of the primary rule,1 word,BLOCK IS SOLID → WALL IS SOLID
+Rule_Creation,3,New Rule,Creates an entirely new rule,1 word,Adds BLOCK IS [NEW_WORD]
+Rule_Fusion,4,Fusion Rule,Combines 3 words into complex fusion rule,3 words,[WORD2] IS [WIN] using all three words
+Combo,Defensive,Shield + Heal,Unbreakable defense with healing,[BLOCK] IS [SHIELD] + [WALL] IS [HEAL],Strategic,High synergy
+Combo,Defensive,Ghost + Solid,Phase through your own blocks,[PIECE] IS [GHOST] + [BLOCK] IS [SOLID],Strategic,Phase control
+Combo,Defensive,Line + Freeze,Pause game when lines clear,[LINE] IS [FREEZE],Tactical,Time control
+Combo,Offensive,Bomb + Lightning,Explosive line clears with chain reactions,[BLOCK] IS [BOMB] + [LINE] IS [LIGHTNING],Destructive,Chain reaction
+Combo,Offensive,Acid + Melt,Dissolve obstacles and temporary blocks,[PIECE] IS [ACID] + [BLOCK] IS [MELT],Erosion,Obstacle clearing
+Combo,Offensive,Wall + Multiply,Create more destruction points,[WALL] IS [MULTIPLY],Multiplication,Area expansion
+Combo,Utility,Reveal + Slow,Enhanced preview with planning time,[BLOCK] IS [REVEAL] + [PIECE] IS [SLOW],Strategic,Planning aid
+Combo,Utility,Teleport + Magnet,Reorganize field on line clears,[LINE] IS [TELEPORT] + [BLOCK] IS [MAGNET],Reorganization,Field control
+Combo,Utility,Transform + Spawn,Convert and generate new blocks,[PIECE] IS [TRANSFORM] + [BLOCK] IS [SPAWN],Generation,Block creation
