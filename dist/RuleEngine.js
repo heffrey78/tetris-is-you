@@ -21,6 +21,15 @@ export class RuleEngine {
     initializeBasicRules() {
         this.addRuleWithPriority('BLOCK', 'SOLID', this.PRIORITY_LEVELS.BASE, 'base');
         this.addRuleWithPriority('WALL', 'STOP', this.PRIORITY_LEVELS.BASE, 'base');
+        // Add some initial visual rules to demonstrate the enhanced visual system
+        // These will be randomly applied to tetris pieces during gameplay
+        this.addRuleWithPriority('I', 'LIGHTNING', this.PRIORITY_LEVELS.BASE, 'base');
+        this.addRuleWithPriority('O', 'SHIELD', this.PRIORITY_LEVELS.BASE, 'base');
+        this.addRuleWithPriority('T', 'BOMB', this.PRIORITY_LEVELS.BASE, 'base');
+        this.addRuleWithPriority('L', 'HEAL', this.PRIORITY_LEVELS.BASE, 'base');
+        this.addRuleWithPriority('J', 'FREEZE', this.PRIORITY_LEVELS.BASE, 'base');
+        this.addRuleWithPriority('S', 'GHOST', this.PRIORITY_LEVELS.BASE, 'base');
+        this.addRuleWithPriority('Z', 'MAGNET', this.PRIORITY_LEVELS.BASE, 'base');
     }
     addRule(noun, property) {
         return this.addRuleWithPriority(noun, property, this.PRIORITY_LEVELS.LINE_CLEAR, 'line-clear');

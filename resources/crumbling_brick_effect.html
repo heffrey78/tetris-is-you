@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crumbling Brick Effect</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #2c3e50, #34495e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        canvas {
+            border: 2px solid #7f8c8d;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            background: #ecf0f1;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            color: #ecf0f1;
+            background: rgba(0,0,0,0.3);
+            padding: 15px 25px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        button:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        input[type="range"] {
+            accent-color: #e74c3c;
+            width: 120px;
+        }
+        
+        label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .info {
+            text-align: center;
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="brickCanvas" width="800" height="600"></canvas>
+        <div class="controls">
+            <button id="crumbleBtn">Start Crumbling</button>
+            <button id="resetBtn">Reset Wall</button>
+            <label>
+                Destruction Force: 
+                <input type="range" id="forceSlider" min="0.1" max="3" step="0.1" value="1">
+            </label>
+            <label>
+                Wind Effect: 
+                <input type="range" id="windSlider" min="0" max="2" step="0.1" value="0.5">
+            </label>
+        </div>
+        <div class="info">Click on the wall to create localized damage!</div>
+    </div>
+
+    <script>
+        class BrickPiece {
+            constructor(x, y, width, height, color, rotation = 0) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.color = color;
+                this.rotation = rotation;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = Math.random() * -3 - 1;
+                this.angularVelocity = (Math.random() - 0.5) * 0.2;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.005 + 0.002;
+                this.bounced = false;
+                this.settled = false;
+            }
+            
+            update(wind, gravity = 0.3) {
+                if (this.settled) return;
+                
+                // Physics
+                this.vy += gravity;
+                this.vx += wind * 0.1;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += this.angularVelocity;
+                
+                // Air resistance
+                this.vx *= 0.99;
+                this.vy *= 0.998;
+                this.angularVelocity *= 0.98;
+                
+                // Bounce off ground
+                if (this.y + this.height > 580 && !this.bounced) {
+                    this.vy *= -0.4;
+                    this.vx *= 0.7;
+                    this.angularVelocity *= 0.5;
+                    this.bounced = true;
+                    
+                    if (Math.abs(this.vy) < 1) {
+                        this.settled = true;
+                        this.vy = 0;
+                    }
+                }
+                
+                // Keep within bounds
+                if (this.x < -this.width) this.x = -this.width;
+                if (this.x > 800) this.x = 800;
+                
+                this.life -= this.decay;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                ctx.save();
+                ctx.globalAlpha = Math.min(this.life, 1);
+                ctx.translate(this.x + this.width/2, this.y + this.height/2);
+                ctx.rotate(this.rotation);
+                
+                // Draw brick piece with shadow
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                // Add highlight for 3D effect
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = this.lightenColor(this.color, 20);
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, 3);
+                ctx.fillRect(-this.width/2, -this.height/2, 3, this.height);
+                
+                ctx.restore();
+            }
+            
+            lightenColor(color, percent) {
+                const r = parseInt(color.substr(1,2), 16);
+                const g = parseInt(color.substr(3,2), 16);
+                const b = parseInt(color.substr(5,2), 16);
+                
+                const newR = Math.min(255, r + percent);
+                const newG = Math.min(255, g + percent);
+                const newB = Math.min(255, b + percent);
+                
+                return `rgb(${newR}, ${newG}, ${newB})`;
+            }
+            
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+        
+        class DustParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = Math.random() * -2 - 0.5;
+                this.size = Math.random() * 3 + 1;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.02 + 0.01;
+                this.opacity = Math.random() * 0.5 + 0.3;
+            }
+            
+            update(wind) {
+                this.x += this.vx + wind * 0.5;
+                this.y += this.vy;
+                this.vy += 0.05; // slight gravity
+                
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                
+                this.life -= this.decay;
+                this.size *= 0.995;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                const alpha = this.life * this.opacity;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#8b4513';
+                ctx.shadowBlur = 3;
+                ctx.shadowColor = '#8b4513';
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, Math.max(this.size, 0.5), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            
+            isDead() {
+                return this.life <= 0 || this.size < 0.5;
+            }
+        }
+        
+        class Brick {
+            constructor(x, y, width, height, damaged = false) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.damaged = damaged;
+                this.crumbling = false;
+                this.health = 100;
+                this.cracks = [];
+                this.color = this.generateBrickColor();
+                
+                // Generate some initial cracks for realism
+                if (Math.random() < 0.3) {
+                    this.generateCracks();
+                }
+            }
+            
+            generateBrickColor() {
+                const variations = [
+                    '#8B4513', '#A0522D', '#CD853F', '#D2691E', '#B8860B'
+                ];
+                return variations[Math.floor(Math.random() * variations.length)];
+            }
+            
+            generateCracks() {
+                const numCracks = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < numCracks; i++) {
+                    this.cracks.push({
+                        x1: Math.random() * this.width,
+                        y1: Math.random() * this.height,
+                        x2: Math.random() * this.width,
+                        y2: Math.random() * this.height,
+                        width: Math.random() * 2 + 0.5
+                    });
+                }
+            }
+            
+            takeDamage(amount, sourceX, sourceY) {
+                this.health -= amount;
+                
+                // Add more cracks when damaged
+                const newCracks = Math.floor(amount / 20);
+                for (let i = 0; i < newCracks; i++) {
+                    this.cracks.push({
+                        x1: Math.random() * this.width,
+                        y1: Math.random() * this.height,
+                        x2: Math.random() * this.width,
+                        y2: Math.random() * this.height,
+                        width: Math.random() * 3 + 1
+                    });
+                }
+                
+                if (this.health <= 0) {
+                    this.crumbling = true;
+                    return this.crumble();
+                }
+                
+                return [];
+            }
+            
+            crumble() {
+                const pieces = [];
+                const dust = [];
+                
+                // Create brick pieces
+                const piecesX = Math.floor(this.width / 15) + 1;
+                const piecesY = Math.floor(this.height / 10) + 1;
+                
+                for (let i = 0; i < piecesX; i++) {
+                    for (let j = 0; j < piecesY; j++) {
+                        const pieceWidth = this.width / piecesX + (Math.random() - 0.5) * 10;
+                        const pieceHeight = this.height / piecesY + (Math.random() - 0.5) * 5;
+                        const pieceX = this.x + (i * this.width / piecesX) + (Math.random() - 0.5) * 5;
+                        const pieceY = this.y + (j * this.height / piecesY) + (Math.random() - 0.5) * 5;
+                        
+                        pieces.push(new BrickPiece(pieceX, pieceY, pieceWidth, pieceHeight, this.color));
+                    }
+                }
+                
+                // Create dust particles
+                for (let i = 0; i < 20; i++) {
+                    const dustX = this.x + Math.random() * this.width;
+                    const dustY = this.y + Math.random() * this.height;
+                    dust.push(new DustParticle(dustX, dustY));
+                }
+                
+                return { pieces, dust };
+            }
+            
+            draw(ctx) {
+                if (this.crumbling) return;
+                
+                // Draw brick
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Draw mortar lines
+                ctx.strokeStyle = '#696969';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                
+                // Draw highlights for 3D effect
+                ctx.fillStyle = this.lightenColor(this.color, 30);
+                ctx.fillRect(this.x, this.y, this.width, 4);
+                ctx.fillRect(this.x, this.y, 4, this.height);
+                
+                // Draw shadows
+                ctx.fillStyle = this.darkenColor(this.color, 30);
+                ctx.fillRect(this.x, this.y + this.height - 4, this.width, 4);
+                ctx.fillRect(this.x + this.width - 4, this.y, 4, this.height);
+                
+                // Draw cracks
+                if (this.cracks.length > 0) {
+                    ctx.strokeStyle = '#333';
+                    this.cracks.forEach(crack => {
+                        ctx.lineWidth = crack.width;
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + crack.x1, this.y + crack.y1);
+                        ctx.lineTo(this.x + crack.x2, this.y + crack.y2);
+                        ctx.stroke();
+                    });
+                }
+                
+                // Show damage with darker coloring
+                if (this.health < 100) {
+                    const damageAlpha = (100 - this.health) / 100 * 0.3;
+                    ctx.fillStyle = `rgba(0,0,0,${damageAlpha})`;
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
+            }
+            
+            lightenColor(color, percent) {
+                const r = parseInt(color.substr(1,2), 16);
+                const g = parseInt(color.substr(3,2), 16);
+                const b = parseInt(color.substr(5,2), 16);
+                
+                const newR = Math.min(255, r + percent);
+                const newG = Math.min(255, g + percent);
+                const newB = Math.min(255, b + percent);
+                
+                return `rgb(${newR}, ${newG}, ${newB})`;
+            }
+            
+            darkenColor(color, percent) {
+                const r = parseInt(color.substr(1,2), 16);
+                const g = parseInt(color.substr(3,2), 16);
+                const b = parseInt(color.substr(5,2), 16);
+                
+                const newR = Math.max(0, r - percent);
+                const newG = Math.max(0, g - percent);
+                const newB = Math.max(0, b - percent);
+                
+                return `rgb(${newR}, ${newG}, ${newB})`;
+            }
+            
+            isPointInside(x, y) {
+                return x >= this.x && x <= this.x + this.width && 
+                       y >= this.y && y <= this.y + this.height;
+            }
+        }
+        
+        class CrumblingBrickEffect {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.bricks = [];
+                this.pieces = [];
+                this.dust = [];
+                this.isActive = false;
+                this.force = 1.0;
+                this.wind = 0.5;
+                
+                this.createWall();
+                this.setupEventListeners();
+                this.animate();
+            }
+            
+            createWall() {
+                this.bricks = [];
+                const brickWidth = 80;
+                const brickHeight = 40;
+                const rows = 12;
+                const cols = 10;
+                
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const x = col * brickWidth + (row % 2) * (brickWidth / 2);
+                        const y = row * (brickHeight - 2) + 50;
+                        
+                        if (x + brickWidth <= 800) {
+                            this.bricks.push(new Brick(x, y, brickWidth, brickHeight));
+                        }
+                    }
+                }
+            }
+            
+            setupEventListeners() {
+                this.canvas.addEventListener('click', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    this.createLocalDamage(x, y, 100 * this.force);
+                });
+            }
+            
+            createLocalDamage(x, y, damage) {
+                const damageRadius = 60 * this.force;
+                
+                this.bricks.forEach(brick => {
+                    if (brick.crumbling) return;
+                    
+                    const brickCenterX = brick.x + brick.width / 2;
+                    const brickCenterY = brick.y + brick.height / 2;
+                    const distance = Math.sqrt((x - brickCenterX) ** 2 + (y - brickCenterY) ** 2);
+                    
+                    if (distance < damageRadius) {
+                        const damageAmount = damage * (1 - distance / damageRadius);
+                        const result = brick.takeDamage(damageAmount, x, y);
+                        
+                        if (result.pieces) {
+                            this.pieces.push(...result.pieces);
+                            this.dust.push(...result.dust);
+                        }
+                    }
+                });
+            }
+            
+            startCrumbling() {
+                this.isActive = true;
+                
+                // Start with some random damage points
+                const damagePoints = Math.floor(Math.random() * 3) + 2;
+                for (let i = 0; i < damagePoints; i++) {
+                    setTimeout(() => {
+                        const x = Math.random() * 800;
+                        const y = Math.random() * 400 + 100;
+                        this.createLocalDamage(x, y, 80 * this.force);
+                    }, i * 500);
+                }
+                
+                // Continue with periodic damage
+                this.damageInterval = setInterval(() => {
+                    if (this.bricks.some(brick => !brick.crumbling)) {
+                        const x = Math.random() * 800;
+                        const y = Math.random() * 400 + 100;
+                        this.createLocalDamage(x, y, 60 * this.force);
+                    } else {
+                        this.stopCrumbling();
+                    }
+                }, 1000);
+            }
+            
+            stopCrumbling() {
+                this.isActive = false;
+                if (this.damageInterval) {
+                    clearInterval(this.damageInterval);
+                }
+            }
+            
+            reset() {
+                this.stopCrumbling();
+                this.pieces = [];
+                this.dust = [];
+                this.createWall();
+            }
+            
+            update() {
+                // Update falling pieces
+                for (let i = this.pieces.length - 1; i >= 0; i--) {
+                    this.pieces[i].update(this.wind);
+                    if (this.pieces[i].isDead()) {
+                        this.pieces.splice(i, 1);
+                    }
+                }
+                
+                // Update dust particles
+                for (let i = this.dust.length - 1; i >= 0; i--) {
+                    this.dust[i].update(this.wind);
+                    if (this.dust[i].isDead()) {
+                        this.dust.splice(i, 1);
+                    }
+                }
+            }
+            
+            draw() {
+                // Clear canvas with sky gradient
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, 600);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#98FB98');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, 800, 600);
+                
+                // Draw ground
+                this.ctx.fillStyle = '#8FBC8F';
+                this.ctx.fillRect(0, 580, 800, 20);
+                
+                // Draw bricks
+                this.bricks.forEach(brick => {
+                    brick.draw(this.ctx);
+                });
+                
+                // Draw dust particles
+                this.dust.forEach(particle => {
+                    particle.draw(this.ctx);
+                });
+                
+                // Draw falling pieces
+                this.pieces.forEach(piece => {
+                    piece.draw(this.ctx);
+                });
+            }
+            
+            animate() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.animate());
+            }
+            
+            setForce(value) {
+                this.force = parseFloat(value);
+            }
+            
+            setWind(value) {
+                this.wind = parseFloat(value);
+            }
+        }
+        
+        // Initialize the effect
+        const canvas = document.getElementById('brickCanvas');
+        const effect = new CrumblingBrickEffect(canvas);
+        
+        // Controls
+        const crumbleBtn = document.getElementById('crumbleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const forceSlider = document.getElementById('forceSlider');
+        const windSlider = document.getElementById('windSlider');
+        
+        crumbleBtn.addEventListener('click', () => {
+            if (!effect.isActive) {
+                effect.startCrumbling();
+                crumbleBtn.textContent = 'Stop Crumbling';
+                crumbleBtn.disabled = false;
+            } else {
+                effect.stopCrumbling();
+                crumbleBtn.textContent = 'Start Crumbling';
+            }
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            effect.reset();
+            crumbleBtn.textContent = 'Start Crumbling';
+            crumbleBtn.disabled = false;
+        });
+        
+        forceSlider.addEventListener('input', (e) => {
+            effect.setForce(e.target.value);
+        });
+        
+        windSlider.addEventListener('input', (e) => {
+            effect.setWind(e.target.value);
+        });
+    </script>
+</body>
+</html>

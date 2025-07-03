@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Flame Effect</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .gray-box {
+            width: 200px;
+            height: 100px;
+            background: linear-gradient(145deg, #666, #888);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 2;
+        }
+        
+        canvas {
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            color: white;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        button.active {
+            background: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="gray-box">
+            <canvas id="flameCanvas" width="220" height="150"></canvas>
+        </div>
+        <div class="controls">
+            <button id="toggleBtn" class="active">Stop Flame</button>
+            <label>
+                Intensity: 
+                <input type="range" id="intensitySlider" min="0.1" max="2" step="0.1" value="1">
+            </label>
+        </div>
+    </div>
+
+    <script>
+        class FlameParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = -Math.random() * 3 - 1;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.02 + 0.01;
+                this.size = Math.random() * 4 + 2;
+                this.heat = Math.random() * 0.5 + 0.5;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy -= 0.1; // gravity effect upward
+                this.vx *= 0.99; // air resistance
+                this.life -= this.decay;
+                this.size *= 0.98;
+                
+                // Add some turbulence
+                this.vx += (Math.random() - 0.5) * 0.2;
+                this.vy += (Math.random() - 0.5) * 0.1;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                const alpha = this.life;
+                const temp = this.heat * this.life;
+                
+                // Create flame color gradient based on temperature
+                let r, g, b;
+                if (temp > 0.7) {
+                    // Hot: white/yellow
+                    r = 255;
+                    g = 255;
+                    b = Math.floor(100 + temp * 155);
+                } else if (temp > 0.4) {
+                    // Medium: orange/yellow
+                    r = 255;
+                    g = Math.floor(100 + temp * 155);
+                    b = 0;
+                } else {
+                    // Cool: red/orange
+                    r = 255;
+                    g = Math.floor(temp * 100);
+                    b = 0;
+                }
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = `rgb(${r}, ${g}, ${b})`;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+        
+        class FlameEffect {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.isRunning = true;
+                this.intensity = 1.0;
+                
+                this.animate();
+            }
+            
+            createParticles() {
+                if (!this.isRunning) return;
+                
+                const particleCount = Math.floor(5 * this.intensity);
+                for (let i = 0; i < particleCount; i++) {
+                    const x = this.canvas.width / 2 + (Math.random() - 0.5) * 60;
+                    const y = this.canvas.height - 10;
+                    this.particles.push(new FlameParticle(x, y));
+                }
+            }
+            
+            update() {
+                // Create new particles
+                this.createParticles();
+                
+                // Update existing particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update();
+                    if (this.particles[i].isDead()) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+            
+            draw() {
+                // Clear with slight trail effect for smooth animation
+                this.ctx.fillStyle = 'rgba(26, 26, 26, 0.1)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw particles
+                this.particles.forEach(particle => {
+                    particle.draw(this.ctx);
+                });
+            }
+            
+            animate() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.animate());
+            }
+            
+            toggle() {
+                this.isRunning = !this.isRunning;
+                if (!this.isRunning) {
+                    // Clear particles when stopping
+                    setTimeout(() => {
+                        if (!this.isRunning) {
+                            this.particles = [];
+                        }
+                    }, 2000);
+                }
+            }
+            
+            setIntensity(value) {
+                this.intensity = parseFloat(value);
+            }
+        }
+        
+        // Initialize the flame effect
+        const canvas = document.getElementById('flameCanvas');
+        const flame = new FlameEffect(canvas);
+        
+        // Controls
+        const toggleBtn = document.getElementById('toggleBtn');
+        const intensitySlider = document.getElementById('intensitySlider');
+        
+        toggleBtn.addEventListener('click', () => {
+            flame.toggle();
+            if (flame.isRunning) {
+                toggleBtn.textContent = 'Stop Flame';
+                toggleBtn.classList.add('active');
+            } else {
+                toggleBtn.textContent = 'Start Flame';
+                toggleBtn.classList.remove('active');
+            }
+        });
+        
+        intensitySlider.addEventListener('input', (e) => {
+            flame.setIntensity(e.target.value);
+        });
+    </script>
+</body>
+</html>

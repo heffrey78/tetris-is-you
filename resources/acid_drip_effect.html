@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Acid Dripping Effect</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .acid-block {
+            width: 200px;
+            height: 120px;
+            background: linear-gradient(145deg, #2a2a2a, #444);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 2;
+            border: 2px solid #333;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 0 0 5px #00ff00;
+            box-shadow: 0 0 10px rgba(0,255,0,0.2);
+        }
+        
+        button:hover {
+            background: rgba(0,255,0,0.1);
+            box-shadow: 0 0 20px rgba(0,255,0,0.4);
+        }
+        
+        button.active {
+            background: rgba(0,255,0,0.2);
+            box-shadow: 0 0 25px rgba(0,255,0,0.6);
+        }
+        
+        input[type="range"] {
+            accent-color: #00ff00;
+        }
+        
+        .warning {
+            color: #ff4444;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 10px;
+            text-shadow: 0 0 5px #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="acid-block">
+            <canvas id="acidCanvas" width="300" height="400"></canvas>
+        </div>
+        <div class="controls">
+            <button id="toggleBtn" class="active">Stop Acid</button>
+            <label>
+                Corrosion Rate: 
+                <input type="range" id="intensitySlider" min="0.1" max="3" step="0.1" value="1">
+            </label>
+            <label>
+                Viscosity: 
+                <input type="range" id="viscositySlider" min="0.5" max="2" step="0.1" value="1">
+            </label>
+        </div>
+        <div class="warning">⚠️ CAUTION: Highly Corrosive Substance ⚠️</div>
+    </div>
+
+    <script>
+        class AcidDrop {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = Math.random() * 2 + 1;
+                this.size = Math.random() * 8 + 4;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.005 + 0.002;
+                this.acidity = Math.random() * 0.5 + 0.5;
+                this.viscosity = 1.0;
+                this.trail = [];
+                this.maxTrailLength = 8;
+            }
+            
+            update(viscosityMultiplier) {
+                this.viscosity = viscosityMultiplier;
+                
+                // Add current position to trail
+                this.trail.push({x: this.x, y: this.y, size: this.size * 0.8});
+                if (this.trail.length > this.maxTrailLength) {
+                    this.trail.shift();
+                }
+                
+                // Physics with viscosity
+                this.vy += 0.15 / this.viscosity; // gravity affected by viscosity
+                this.x += this.vx / this.viscosity;
+                this.y += this.vy / this.viscosity;
+                
+                // Air resistance
+                this.vx *= 0.99;
+                this.vy *= 0.998;
+                
+                // Add some randomness for realistic dripping
+                this.vx += (Math.random() - 0.5) * 0.1;
+                
+                // Slight size variation for bubbling effect (keep minimum size)
+                this.size = Math.max(this.size + Math.sin(Date.now() * 0.01 + this.x) * 0.2, 1);
+                
+                this.life -= this.decay;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                const alpha = this.life;
+                const brightness = this.acidity * this.life;
+                
+                // Draw trail first
+                this.trail.forEach((point, index) => {
+                    const trailAlpha = (index / this.trail.length) * alpha * 0.3;
+                    const trailBrightness = brightness * (index / this.trail.length);
+                    
+                    ctx.save();
+                    ctx.globalAlpha = trailAlpha;
+                    ctx.fillStyle = `rgb(${Math.floor(trailBrightness * 100)}, ${Math.floor(255 * trailBrightness)}, ${Math.floor(trailBrightness * 50)})`;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = `rgb(0, ${Math.floor(255 * trailBrightness)}, 0)`;
+                    
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, point.size * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                });
+                
+                // Draw main drop
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                
+                // Create gradient for 3D effect (ensure positive radius)
+                const radius = Math.max(this.size, 1);
+                const gradient = ctx.createRadialGradient(
+                    this.x - radius * 0.3, this.y - radius * 0.3, 0,
+                    this.x, this.y, radius
+                );
+                
+                const r = Math.floor(brightness * 150);
+                const g = Math.floor(255 * brightness);
+                const b = Math.floor(brightness * 100);
+                
+                gradient.addColorStop(0, `rgba(${r + 50}, ${g}, ${b + 30}, 1)`);
+                gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0.9)`);
+                gradient.addColorStop(1, `rgba(${r - 30}, ${g - 50}, ${b - 20}, 0.6)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgb(0, ${g}, 0)`;
+                
+                // Draw drop shape (slightly elongated) - ensure positive size
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y, radius, radius * 1.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add highlight for glossy effect - ensure positive highlight size
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.fillStyle = `rgba(255, 255, 255, 0.3)`;
+                ctx.beginPath();
+                const highlightRadius = Math.max(radius * 0.3, 0.5);
+                ctx.ellipse(this.x - radius * 0.3, this.y - radius * 0.4, highlightRadius, Math.max(radius * 0.2, 0.3), 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            isDead() {
+                return this.life <= 0 || this.y > 500;
+            }
+        }
+        
+        class AcidBubble {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 3 + 1;
+                this.life = Math.random() * 2 + 1;
+                this.maxLife = this.life;
+                this.speed = Math.random() * 0.5 + 0.2;
+                this.opacity = Math.random() * 0.5 + 0.3;
+            }
+            
+            update() {
+                this.y -= this.speed;
+                this.life -= 0.02;
+                this.size += 0.05;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                const alpha = (this.life / this.maxLife) * this.opacity;
+                const brightness = this.life / this.maxLife;
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.strokeStyle = `rgb(0, ${Math.floor(255 * brightness)}, 0)`;
+                ctx.lineWidth = 1;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = `rgb(0, ${Math.floor(255 * brightness)}, 0)`;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+            
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+        
+        class AcidEffect {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.drops = [];
+                this.bubbles = [];
+                this.isRunning = true;
+                this.intensity = 1.0;
+                this.viscosity = 1.0;
+                this.poolLevel = 0;
+                
+                this.animate();
+            }
+            
+            createDrops() {
+                if (!this.isRunning) return;
+                
+                const dropCount = Math.floor(3 * this.intensity);
+                for (let i = 0; i < dropCount; i++) {
+                    if (Math.random() < 0.7) { // 70% chance to create drop
+                        const x = this.canvas.width / 2 + (Math.random() - 0.5) * 180;
+                        const y = 120; // Start from bottom of block
+                        this.drops.push(new AcidDrop(x, y));
+                    }
+                }
+                
+                // Create bubbles in the acid pool
+                if (this.poolLevel > 20 && Math.random() < 0.3) {
+                    const bubbleX = this.canvas.width / 2 + (Math.random() - 0.5) * 200;
+                    const bubbleY = this.canvas.height - this.poolLevel + Math.random() * 20;
+                    this.bubbles.push(new AcidBubble(bubbleX, bubbleY));
+                }
+            }
+            
+            update() {
+                this.createDrops();
+                
+                // Update drops
+                for (let i = this.drops.length - 1; i >= 0; i--) {
+                    this.drops[i].update(this.viscosity);
+                    if (this.drops[i].isDead()) {
+                        this.drops.splice(i, 1);
+                        // Increase pool level slightly when drop hits bottom
+                        if (this.poolLevel < 50) {
+                            this.poolLevel += 0.5;
+                        }
+                    }
+                }
+                
+                // Update bubbles
+                for (let i = this.bubbles.length - 1; i >= 0; i--) {
+                    this.bubbles[i].update();
+                    if (this.bubbles[i].isDead()) {
+                        this.bubbles.splice(i, 1);
+                    }
+                }
+                
+                // Slowly evaporate pool
+                if (this.poolLevel > 0) {
+                    this.poolLevel -= 0.05;
+                }
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw acid pool at bottom
+                if (this.poolLevel > 0) {
+                    const poolY = this.canvas.height - this.poolLevel;
+                    const gradient = this.ctx.createLinearGradient(0, poolY, 0, this.canvas.height);
+                    gradient.addColorStop(0, 'rgba(0, 255, 0, 0.6)');
+                    gradient.addColorStop(1, 'rgba(0, 150, 0, 0.8)');
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.shadowBlur = 20;
+                    this.ctx.shadowColor = 'rgb(0, 255, 0)';
+                    this.ctx.fillRect(0, poolY, this.canvas.width, this.poolLevel);
+                    
+                    // Add surface ripples
+                    this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    for (let x = 0; x < this.canvas.width; x += 10) {
+                        const wave = Math.sin((x + Date.now() * 0.005) * 0.05) * 2;
+                        this.ctx.lineTo(x, poolY + wave);
+                    }
+                    this.ctx.stroke();
+                }
+                
+                // Draw bubbles
+                this.bubbles.forEach(bubble => {
+                    bubble.draw(this.ctx);
+                });
+                
+                // Draw drops
+                this.drops.forEach(drop => {
+                    drop.draw(this.ctx);
+                });
+            }
+            
+            animate() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.animate());
+            }
+            
+            toggle() {
+                this.isRunning = !this.isRunning;
+                if (!this.isRunning) {
+                    // Clear drops when stopping
+                    setTimeout(() => {
+                        if (!this.isRunning) {
+                            this.drops = [];
+                            this.bubbles = [];
+                        }
+                    }, 3000);
+                }
+            }
+            
+            setIntensity(value) {
+                this.intensity = parseFloat(value);
+            }
+            
+            setViscosity(value) {
+                this.viscosity = parseFloat(value);
+            }
+        }
+        
+        // Initialize the acid effect
+        const canvas = document.getElementById('acidCanvas');
+        const acid = new AcidEffect(canvas);
+        
+        // Controls
+        const toggleBtn = document.getElementById('toggleBtn');
+        const intensitySlider = document.getElementById('intensitySlider');
+        const viscositySlider = document.getElementById('viscositySlider');
+        
+        toggleBtn.addEventListener('click', () => {
+            acid.toggle();
+            if (acid.isRunning) {
+                toggleBtn.textContent = 'Stop Acid';
+                toggleBtn.classList.add('active');
+            } else {
+                toggleBtn.textContent = 'Start Acid';
+                toggleBtn.classList.remove('active');
+            }
+        });
+        
+        intensitySlider.addEventListener('input', (e) => {
+            acid.setIntensity(e.target.value);
+        });
+        
+        viscositySlider.addEventListener('input', (e) => {
+            acid.setViscosity(e.target.value);
+        });
+    </script>
+</body>
+</html>
