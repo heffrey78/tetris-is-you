@@ -4,7 +4,8 @@ import { RuleEffects } from './RuleEffects.js';
 export class GameLogic {
     constructor(gameState, ruleEngine, wordQueue, logger) {
         this.dropTimer = 0;
-        this.dropInterval = 1000; // 1 second
+        this.baseDropInterval = 1000; // 1 second base speed
+        this.dropInterval = 1000; // Current drop interval
         this.gameState = gameState;
         this.ruleEngine = ruleEngine;
         this.wordQueue = wordQueue;
@@ -12,6 +13,9 @@ export class GameLogic {
     }
     setUIManager(uiManager) {
         this.uiManager = uiManager;
+    }
+    setEffectManager(effectManager) {
+        this.effectManager = effectManager;
     }
     update(deltaTime) {
         if (this.gameState.gameOver || this.gameState.paused) {
@@ -221,6 +225,13 @@ export class GameLogic {
         // Update game state
         this.gameState.linesCleared += lines.length;
         this.gameState.score += this.calculateScore(lines.length);
+        // Update level every 10 lines and increase drop speed
+        const newLevel = Math.floor(this.gameState.linesCleared / 10) + 1;
+        if (newLevel > this.gameState.level) {
+            this.gameState.level = newLevel;
+            this.updateDropSpeed();
+            console.log(`🎚️ Level up! Now at level ${this.gameState.level} (Drop speed increased)`);
+        }
         // Consume words from queue and apply rule engine effects
         const wordsNeeded = Math.min(lines.length, 3);
         console.log(`🔧 About to consume ${wordsNeeded} words for ${lines.length}-line clear`);
@@ -232,6 +243,12 @@ export class GameLogic {
     calculateScore(linesCleared) {
         const baseScore = [0, 100, 300, 500, 800]; // 0, 1, 2, 3, 4 lines
         return baseScore[Math.min(linesCleared, 4)] * (this.gameState.level);
+    }
+    updateDropSpeed() {
+        // Increase speed by 12% each level, with a cap to prevent unplayable speeds
+        const speedMultiplier = Math.pow(0.88, this.gameState.level - 1); // 12% faster each level
+        this.dropInterval = Math.max(this.baseDropInterval * speedMultiplier, 100); // Min 100ms (max speed)
+        console.log(`🎚️ Drop speed updated: ${this.dropInterval}ms (${Math.round((1000 / this.dropInterval) * 10) / 10} blocks/sec)`);
     }
     isGameOver() {
         // Check if top rows have blocks
@@ -380,26 +397,92 @@ export class GameLogic {
         console.log('⏱️ Created field full of bombs - should see throttling in action when clearing lines');
     }
     testSpellEffects() {
-        console.log('🎯 Testing spell effects directly...');
-        // Add multiple spell rules
+        console.log('🎯 Testing ALL spell effects directly...');
+        // Add all spell rules
         this.ruleEngine.addRuleWithPriority('FROST', 'BOMB', 200, 'line-clear');
         this.ruleEngine.addRuleWithPriority('CRYSTAL', 'LIGHTNING', 200, 'line-clear');
         this.ruleEngine.addRuleWithPriority('EMBER', 'ACID', 200, 'line-clear');
-        console.log('🎯 Added spell rules: [FROST] IS [BOMB], [CRYSTAL] IS [LIGHTNING], [EMBER] IS [ACID]');
+        this.ruleEngine.addRuleWithPriority('CLONE', 'MULTIPLY', 200, 'line-clear');
+        this.ruleEngine.addRuleWithPriority('PORTAL', 'TELEPORT', 200, 'line-clear');
+        this.ruleEngine.addRuleWithPriority('IRON', 'MAGNET', 200, 'line-clear');
+        this.ruleEngine.addRuleWithPriority('MORPH', 'TRANSFORM', 200, 'line-clear');
+        this.ruleEngine.addRuleWithPriority('LIFE', 'HEAL', 200, 'line-clear');
+        console.log('🎯 Added ALL spell rules: BOMB, LIGHTNING, ACID, MULTIPLY, TELEPORT, MAGNET, TRANSFORM, HEAL');
         // Create a line with different block types that should trigger spells
         const testRow = LAYOUT.PLAYFIELD_ROWS - 1;
+        const blockTypes = ['frost', 'crystal', 'ember', 'clone', 'portal', 'iron', 'morph', 'life'];
         for (let col = 0; col < LAYOUT.PLAYFIELD_COLS; col++) {
             const block = {
                 x: col,
                 y: testRow,
                 color: { r: 150, g: 150, b: 150 },
                 solid: true,
-                type: col % 3 === 0 ? 'frost' : col % 3 === 1 ? 'crystal' : 'ember'
+                type: blockTypes[col % blockTypes.length]
             };
             this.gameState.playfield[testRow][col] = block;
         }
-        console.log('🎯 Created test line with spell blocks - clear this line to trigger spell effects!');
-        console.log('🎯 Expected: BOMB explosions, LIGHTNING strikes, ACID dissolving');
+        console.log('🎯 Created test line with ALL spell blocks - clear this line to trigger ALL spell effects!');
+        console.log('🎯 Expected: BOMB, LIGHTNING, ACID, MULTIPLY, TELEPORT, MAGNET, TRANSFORM, HEAL effects');
+    }
+    testVisualStates() {
+        console.log('🎨 Testing ALL visual block states...');
+        // Add rules for all visual properties to showcase different appearances
+        this.ruleEngine.addRuleWithPriority('BLOCK', 'BOMB', 200, 'line-clear'); // Orange glow, thick border
+        this.ruleEngine.addRuleWithPriority('CRYSTAL', 'GHOST', 200, 'line-clear'); // Semi-transparent, dashed border
+        this.ruleEngine.addRuleWithPriority('RUNE', 'SHIELD', 200, 'line-clear'); // Blue glow, double border
+        this.ruleEngine.addRuleWithPriority('ORB', 'HEAL', 200, 'line-clear'); // Green glow, plus symbol
+        this.ruleEngine.addRuleWithPriority('SHARD', 'LIGHTNING', 200, 'line-clear'); // Yellow glow
+        this.ruleEngine.addRuleWithPriority('EMBER', 'WIN', 200, 'line-clear'); // Golden glow and border
+        this.ruleEngine.addRuleWithPriority('FROST', 'LOSE', 200, 'line-clear'); // Red border and glow
+        this.ruleEngine.addRuleWithPriority('VOID', 'FREEZE', 200, 'line-clear'); // Ice crystal pattern
+        this.ruleEngine.addRuleWithPriority('IRON', 'MAGNET', 200, 'line-clear'); // Magnetic field lines
+        this.ruleEngine.addRuleWithPriority('CLONE', 'MULTIPLY', 200, 'line-clear'); // Split/clone pattern
+        this.ruleEngine.addRuleWithPriority('PORTAL', 'TELEPORT', 200, 'line-clear'); // Portal swirl pattern
+        this.ruleEngine.addRuleWithPriority('MORPH', 'TRANSFORM', 200, 'line-clear'); // Morphing effects
+        console.log('🎨 Added visual rules for showcasing all enhanced block appearances');
+        // Clear the playfield first
+        for (let row = 0; row < LAYOUT.PLAYFIELD_ROWS; row++) {
+            for (let col = 0; col < LAYOUT.PLAYFIELD_COLS; col++) {
+                this.gameState.playfield[row][col] = null;
+            }
+        }
+        // Create a visual showcase grid with different block types
+        const blockConfigs = [
+            { type: 'BLOCK', color: { r: 255, g: 100, b: 0 }, name: 'BOMB (Orange glow)' },
+            { type: 'crystal', color: { r: 150, g: 150, b: 255 }, name: 'GHOST (Dashed border)' },
+            { type: 'rune', color: { r: 0, g: 150, b: 255 }, name: 'SHIELD (Blue glow)' },
+            { type: 'orb', color: { r: 0, g: 255, b: 100 }, name: 'HEAL (Green + symbol)' },
+            { type: 'shard', color: { r: 255, g: 255, b: 0 }, name: 'LIGHTNING (Yellow glow)' },
+            { type: 'ember', color: { r: 255, g: 215, b: 0 }, name: 'WIN (Golden glow)' },
+            { type: 'frost', color: { r: 255, g: 0, b: 0 }, name: 'LOSE (Red border)' },
+            { type: 'void', color: { r: 135, g: 206, b: 255 }, name: 'FREEZE (Ice crystal)' },
+            { type: 'iron', color: { r: 255, g: 0, b: 255 }, name: 'MAGNET (Field lines)' },
+            { type: 'clone', color: { r: 200, g: 200, b: 200 }, name: 'MULTIPLY (Split pattern)' },
+            { type: 'portal', color: { r: 136, g: 0, b: 255 }, name: 'TELEPORT (Portal swirl)' },
+            { type: 'morph', color: { r: 255, g: 165, b: 0 }, name: 'TRANSFORM (Morphing)' }
+        ];
+        // Create a showcase pattern - 3 rows of different visual states
+        let blockIndex = 0;
+        for (let row = LAYOUT.PLAYFIELD_ROWS - 3; row < LAYOUT.PLAYFIELD_ROWS; row++) {
+            for (let col = 0; col < LAYOUT.PLAYFIELD_COLS && blockIndex < blockConfigs.length; col++) {
+                const config = blockConfigs[blockIndex];
+                const block = {
+                    x: col,
+                    y: row,
+                    color: config.color,
+                    solid: true,
+                    type: config.type
+                };
+                this.gameState.playfield[row][col] = block;
+                blockIndex++;
+            }
+        }
+        console.log('🎨 Created visual showcase with 12 different block visual states!');
+        console.log('🎨 Each block should have distinct appearance based on its rule properties:');
+        blockConfigs.forEach((config, i) => {
+            console.log(`   ${i + 1}. ${config.name}`);
+        });
+        console.log('🎨 Check the Visual Legend panel in the UI to see active property descriptions!');
     }
     applySpellEffects(clearedLines) {
         // Check each cleared line for blocks with spell effects
@@ -492,19 +575,21 @@ export class GameLogic {
         }
         // Log the massive combo effect
         this.logger?.logSpellEffect('SPELL_COMBO', { x: col, y: row }, `🌟 ULTRA COMBO: ${spellTypes.join(' + ')} caused catastrophic field transformation!`, [{ x: col, y: row, type: block.type }]);
-        // Show dramatic visual notification for combo
-        this.uiManager?.showSpellEffectNotification('SPELL_COMBO', spellTypes.length);
+        // Show dramatic full-screen combo animation
+        if (this.effectManager) {
+            this.effectManager.addComboEffect(spellTypes.length, 1.0 + (spellTypes.length * 0.3));
+        }
     }
     executeSpellEffect(spellName, block, row, col) {
-        console.log(`⚡ Executing ${spellName} spell at (${col}, ${row})`);
+        console.log(`⚡⚡⚡ EXECUTING SPELL: ${spellName} at (${col}, ${row}) ⚡⚡⚡`);
         // Check throttling for this effect
         if (this.ruleEngine.shouldThrottleEffect(spellName)) {
             console.log(`⏱️ ${spellName} effect throttled at (${col}, ${row})`);
             this.logger?.logThrottledEffect(spellName, { x: col, y: row }, { reason: 'Rate limit exceeded' });
             return;
         }
-        // Show spell effect notification
-        this.uiManager?.showSpellEffectNotification(spellName, 1);
+        // Show spell effect canvas animation
+        this.showSpellEffectCanvas(spellName, row, col);
         switch (spellName.toUpperCase()) {
             case 'BOMB':
                 this.executeBombSpell(row, col);
@@ -535,8 +620,85 @@ export class GameLogic {
                 break;
         }
     }
+    showSpellEffectCanvas(spellName, row, col) {
+        if (!this.effectManager) {
+            console.error(`❌ EffectManager is null! Cannot show ${spellName} effect at (${col}, ${row})`);
+            return;
+        }
+        console.log(`🎨 TRIGGERING CANVAS EFFECT: ${spellName} at (${col}, ${row})`);
+        const gridPosition = { x: col, y: row };
+        switch (spellName.toUpperCase()) {
+            case 'LIGHTNING':
+                this.effectManager.addEffect({
+                    type: 'lightning_bolt',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 1000,
+                    autoRemove: true
+                });
+                break;
+            case 'MULTIPLY':
+                this.effectManager.addEffect({
+                    type: 'multiply',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 1200,
+                    autoRemove: true
+                });
+                break;
+            case 'TELEPORT':
+                this.effectManager.addEffect({
+                    type: 'teleport',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 1500,
+                    autoRemove: true
+                });
+                break;
+            case 'MAGNET':
+                this.effectManager.addEffect({
+                    type: 'magnet',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 1500,
+                    autoRemove: true
+                });
+                break;
+            case 'TRANSFORM':
+                this.effectManager.addEffect({
+                    type: 'transform',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 1400,
+                    autoRemove: true
+                });
+                break;
+            case 'HEAL':
+                this.effectManager.addEffect({
+                    type: 'heal',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 1750,
+                    autoRemove: true
+                });
+                break;
+            default:
+                // No additional canvas effect needed - BOMB and ACID already have canvas effects
+                break;
+        }
+    }
     executeBombSpell(centerRow, centerCol) {
         console.log(`💥💥💥 MASSIVE BOMB EXPLOSION at (${centerCol}, ${centerRow})! 💥💥💥`);
+        // Add flame effect at explosion center
+        if (this.effectManager) {
+            this.effectManager.addEffect({
+                type: 'flame',
+                gridPosition: { x: centerCol, y: centerRow },
+                intensity: 1.5,
+                duration: 2000,
+                autoRemove: true
+            });
+        }
         const affectedBlocks = [];
         // Destroy blocks in 3x3 area around bomb
         for (let row = centerRow - 1; row <= centerRow + 1; row++) {
@@ -547,6 +709,16 @@ export class GameLogic {
                     if (targetBlock) {
                         console.log(`💥 Destroying block at (${col}, ${row})`);
                         affectedBlocks.push({ x: col, y: row, type: targetBlock.type });
+                        // Add crumbling brick effect for WALL blocks
+                        if (targetBlock.type === 'WALL' && this.effectManager) {
+                            this.effectManager.addEffect({
+                                type: 'crumbling_brick',
+                                gridPosition: { x: col, y: row },
+                                intensity: 1.1,
+                                duration: 2500,
+                                autoRemove: true
+                            });
+                        }
                         this.gameState.playfield[row][col] = null;
                         // Chain reaction: if destroyed block is also a bomb
                         if (this.hasSpellProperty(targetBlock, 'BOMB') && (row !== centerRow || col !== centerCol)) {
@@ -591,6 +763,16 @@ export class GameLogic {
     }
     executeAcidSpell(row, col) {
         console.log(`🧪🧪🧪 CORROSIVE ACID BATH dissolving blocks below (${col}, ${row})! 🧪🧪🧪`);
+        // Trigger acid drip visual effect
+        if (this.effectManager) {
+            this.effectManager.addEffect({
+                type: 'acid_drip',
+                gridPosition: { x: col, y: row },
+                intensity: 0.8,
+                duration: 1500, // Reduced from 3 seconds to 1.5 seconds
+                autoRemove: true
+            });
+        }
         let dissolvedCount = 0;
         let dissolvedTypes = [];
         // Dissolve multiple blocks below this position (not just one)

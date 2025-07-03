@@ -86,12 +86,77 @@
             color: #fff;
             font-size: 10px;
         }
+        
+        .score-item {
+            color: #00ffff;
+            margin: 5px 0;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .score-item span {
+            color: #ffff00;
+        }
+        
+        #nextPieceContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+        
+        #nextPieceCanvas {
+            background: #000;
+            border: 1px solid #444;
+            border-radius: 3px;
+        }
+        
+        .visual-legend {
+            font-size: 10px;
+            line-height: 1.4;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 4px 0;
+            padding: 2px;
+        }
+        
+        .legend-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            border: 1px solid #666;
+            flex-shrink: 0;
+        }
+        
+        .legend-text {
+            color: #ccc;
+            font-size: 9px;
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="sidePanel">
+            <div class="panel-section">
+                <div class="section-title">Score</div>
+                <div id="scoreDisplay">
+                    <div class="score-item">Score: <span id="currentScore">0</span></div>
+                    <div class="score-item">Level: <span id="currentLevel">1</span></div>
+                    <div class="score-item">Lines: <span id="linesCleared">0</span></div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">Next Piece</div>
+                <div id="nextPieceContainer">
+                    <canvas id="nextPieceCanvas" width="120" height="120"></canvas>
+                </div>
+            </div>
+            
             <div class="panel-section">
                 <div class="section-title">Active Rules</div>
                 <div id="activeRules">
@@ -125,9 +190,16 @@
                     <div class="word-item">WEAK</div>
                 </div>
             </div>
+            
+            <div class="panel-section">
+                <div class="section-title">Visual Legend</div>
+                <div id="visualLegend" class="visual-legend">
+                    <!-- Legend will be populated by JavaScript -->
+                </div>
+            </div>
         </div>
     </div>
     
-    <script type="module" src="main.js"></script>
+    <script type="module" src="dist/main.js"></script>
 </body>
 </html>

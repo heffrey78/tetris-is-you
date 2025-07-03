@@ -3,6 +3,12 @@ export declare class UIManager {
     private activeRulesElement;
     private ruleMatrixElement;
     private wordQueueElement;
+    private currentScoreElement;
+    private currentLevelElement;
+    private linesClearedElement;
+    private nextPieceCanvas;
+    private nextPieceCtx;
+    private visualLegendElement;
     constructor();
     updateUI(gameState: GameState): void;
     private updateActiveRules;
@@ -17,4 +23,6 @@ export declare class UIManager {
     updateScore(score: number, level: number, linesCleared: number): void;
     showSpellEffectNotification(spellName: string, comboLevel?: number): void;
     showRuleChangeAnimation(ruleChange: string): void;
+    private updateNextPiecePreview;
+    private updateVisualLegend;
 }

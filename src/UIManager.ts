@@ -1,17 +1,36 @@
-import { GameState, Rule, WordQueueItem, RuleMatrixPreview } from './types.js';
+import { GameState, Rule, WordQueueItem, RuleMatrixPreview, TetrisPiece } from './types.js';
 import { RuleEffects } from './RuleEffects.js';
 
 export class UIManager {
     private activeRulesElement: HTMLElement;
     private ruleMatrixElement: HTMLElement;
     private wordQueueElement: HTMLElement;
+    private currentScoreElement: HTMLElement;
+    private currentLevelElement: HTMLElement;
+    private linesClearedElement: HTMLElement;
+    private nextPieceCanvas: HTMLCanvasElement;
+    private nextPieceCtx: CanvasRenderingContext2D;
+    private visualLegendElement: HTMLElement;
 
     constructor() {
         this.activeRulesElement = document.getElementById('activeRules')!;
         this.ruleMatrixElement = document.getElementById('ruleMatrix')!;
         this.wordQueueElement = document.getElementById('wordQueue')!;
+        this.currentScoreElement = document.getElementById('currentScore')!;
+        this.currentLevelElement = document.getElementById('currentLevel')!;
+        this.linesClearedElement = document.getElementById('linesCleared')!;
+        this.nextPieceCanvas = document.getElementById('nextPieceCanvas')! as HTMLCanvasElement;
+        this.visualLegendElement = document.getElementById('visualLegend')!
         
-        if (!this.activeRulesElement || !this.ruleMatrixElement || !this.wordQueueElement) {
+        const ctx = this.nextPieceCanvas.getContext('2d');
+        if (!ctx) {
+            throw new Error('Could not get 2D context for next piece canvas');
+        }
+        this.nextPieceCtx = ctx;
+        
+        if (!this.activeRulesElement || !this.ruleMatrixElement || !this.wordQueueElement ||
+            !this.currentScoreElement || !this.currentLevelElement || !this.linesClearedElement ||
+            !this.nextPieceCanvas || !this.visualLegendElement) {
             throw new Error('Required UI elements not found');
         }
     }
@@ -20,6 +39,8 @@ export class UIManager {
         this.updateActiveRules(gameState.rules);
         this.updateRuleMatrix(gameState.ruleMatrix);
         this.updateWordQueue(gameState.wordQueue);
+        this.updateNextPiecePreview(gameState.nextPiece);
+        this.updateVisualLegend(gameState.rules);
     }
 
     private updateActiveRules(rules: Rule[]): void {
@@ -127,6 +148,7 @@ export class UIManager {
                         <p>Space - Hard drop</p>
                         <p>P - Pause/Resume</p>
                         <p>T - Add test blocks</p>
+                        <p>V - Test visual block states</p>
                         <p>1-4 - Test rule effects</p>
                     </div>
                 </div>
@@ -149,104 +171,14 @@ export class UIManager {
     }
 
     public updateScore(score: number, level: number, linesCleared: number): void {
-        // Update score display if we add a score panel later
-        console.log(`Score: ${score}, Level: ${level}, Lines: ${linesCleared}`);
+        this.currentScoreElement.textContent = score.toLocaleString();
+        this.currentLevelElement.textContent = level.toString();
+        this.linesClearedElement.textContent = linesCleared.toString();
     }
 
     public showSpellEffectNotification(spellName: string, comboLevel: number = 1): void {
-        console.log(`🎬 SHOWING SPELL NOTIFICATION: ${spellName} (combo level: ${comboLevel})`);
-        
-        // Create dramatic spell effect notification
-        const notification = document.createElement('div');
-        notification.style.position = 'fixed';
-        notification.style.top = '50%';
-        notification.style.left = '50%';
-        notification.style.transform = 'translate(-50%, -50%)';
-        notification.style.fontSize = comboLevel > 1 ? '48px' : '36px';
-        notification.style.fontWeight = 'bold';
-        notification.style.color = '#fff';
-        notification.style.textShadow = '0 0 20px rgba(255, 255, 255, 0.8)';
-        notification.style.zIndex = '2000';
-        notification.style.pointerEvents = 'none';
-        notification.style.background = 'rgba(0, 0, 0, 0.8)';
-        notification.style.padding = '20px';
-        notification.style.borderRadius = '10px';
-        notification.style.border = '3px solid #fff';
-        
-        // Set spell-specific styling
-        switch (spellName.toUpperCase()) {
-            case 'BOMB':
-                notification.textContent = '💥 EXPLOSION! 💥';
-                notification.style.color = '#ff4400';
-                break;
-            case 'LIGHTNING':
-                notification.textContent = '⚡ LIGHTNING STRIKE! ⚡';
-                notification.style.color = '#44aaff';
-                break;
-            case 'ACID':
-                notification.textContent = '🧪 ACID BATH! 🧪';
-                notification.style.color = '#44ff44';
-                break;
-            case 'SPELL_COMBO':
-                notification.textContent = '🌟 ULTRA COMBO! 🌟';
-                notification.style.color = '#ff44ff';
-                notification.style.fontSize = '60px';
-                break;
-            default:
-                notification.textContent = `✨ ${spellName}! ✨`;
-                notification.style.color = '#ffff44';
-                break;
-        }
-
-        document.body.appendChild(notification);
-        console.log(`🎬 Notification added to DOM, starting animation...`);
-
-        // JavaScript-based animation for better compatibility
-        let scale = 0.5;
-        let opacity = 0;
-        let rotation = 0;
-        const duration = comboLevel > 1 ? 4000 : 2000;
-        const startTime = Date.now();
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            if (progress < 0.2) {
-                // Grow and fade in
-                const subProgress = progress / 0.2;
-                scale = 0.5 + (0.7 * subProgress); // 0.5 to 1.2
-                opacity = subProgress;
-            } else if (progress < 0.8) {
-                // Stay visible and stable
-                scale = 1.2 - (0.2 * (progress - 0.2) / 0.6); // 1.2 to 1.0
-                opacity = 1;
-            } else {
-                // Fade out
-                const subProgress = (progress - 0.8) / 0.2;
-                scale = 1.0 - (0.2 * subProgress); // 1.0 to 0.8
-                opacity = 1 - subProgress;
-            }
-            
-            if (comboLevel > 1) {
-                rotation = progress * 1440; // 4 full rotations for combos
-            }
-            
-            notification.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${rotation}deg)`;
-            notification.style.opacity = opacity.toString();
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Animation complete, remove notification
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                    console.log(`🎬 Notification animation complete, removed from DOM`);
-                }
-            }
-        };
-        
-        requestAnimationFrame(animate);
+        // Legacy method - now only used for testing. All spells use canvas effects.
+        console.log(`🎬 [DEPRECATED] Spell notification: ${spellName} (combo level: ${comboLevel}) - Canvas effects are now used instead`);
     }
 
     public showRuleChangeAnimation(ruleChange: string): void {
@@ -287,5 +219,103 @@ export class UIManager {
                 document.head.removeChild(style);
             }
         }, 3000);
+    }
+
+    private updateNextPiecePreview(nextPiece: TetrisPiece | null): void {
+        // Clear the canvas
+        this.nextPieceCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height);
+        
+        if (!nextPiece) return;
+        
+        // Draw the next piece in the center of the small canvas
+        const blockSize = 20;
+        const canvasCenter = {
+            x: this.nextPieceCanvas.width / 2,
+            y: this.nextPieceCanvas.height / 2
+        };
+        
+        // Calculate piece bounds for centering
+        const minX = Math.min(...nextPiece.blocks.map(b => b.x));
+        const maxX = Math.max(...nextPiece.blocks.map(b => b.x));
+        const minY = Math.min(...nextPiece.blocks.map(b => b.y));
+        const maxY = Math.max(...nextPiece.blocks.map(b => b.y));
+        
+        const pieceWidth = (maxX - minX + 1) * blockSize;
+        const pieceHeight = (maxY - minY + 1) * blockSize;
+        
+        const offsetX = canvasCenter.x - pieceWidth / 2 - minX * blockSize;
+        const offsetY = canvasCenter.y - pieceHeight / 2 - minY * blockSize;
+        
+        // Draw each block of the piece
+        this.nextPieceCtx.fillStyle = `rgb(${nextPiece.color.r}, ${nextPiece.color.g}, ${nextPiece.color.b})`;
+        this.nextPieceCtx.strokeStyle = '#fff';
+        this.nextPieceCtx.lineWidth = 1;
+        
+        for (const block of nextPiece.blocks) {
+            const x = offsetX + block.x * blockSize;
+            const y = offsetY + block.y * blockSize;
+            
+            // Fill the block
+            this.nextPieceCtx.fillRect(x, y, blockSize, blockSize);
+            
+            // Draw border
+            this.nextPieceCtx.strokeRect(x, y, blockSize, blockSize);
+        }
+    }
+
+    private updateVisualLegend(rules: Rule[]): void {
+        this.visualLegendElement.innerHTML = '';
+        
+        // Get unique properties from active rules
+        const activeProperties = [...new Set(rules.map(rule => rule.property))];
+        
+        // Define visual legend for common properties
+        const legendDefinitions: { [key: string]: { color: string; border: string; description: string } } = {
+            'BOMB': { color: '#ff8800', border: 'thick orange', description: 'Orange glow, thick border' },
+            'GHOST': { color: '#666666', border: 'dashed gray', description: 'Semi-transparent, dashed border' },
+            'SHIELD': { color: '#0088ff', border: 'double blue', description: 'Blue glow, double border' },
+            'HEAL': { color: '#00ff44', border: 'green', description: 'Green glow, plus symbol' },
+            'LIGHTNING': { color: '#ffff00', border: 'yellow', description: 'Yellow glow' },
+            'WIN': { color: '#ffd700', border: 'golden', description: 'Golden glow and border' },
+            'LOSE': { color: '#ff0000', border: 'red', description: 'Red border and glow' },
+            'FREEZE': { color: '#88ddff', border: 'light blue', description: 'Ice crystal pattern' },
+            'MAGNET': { color: '#ff00ff', border: 'magenta', description: 'Magnetic field lines' },
+            'MULTIPLY': { color: '#ffffff', border: 'white', description: 'Split/clone pattern' },
+            'TELEPORT': { color: '#8800ff', border: 'purple', description: 'Portal swirl pattern' },
+            'TRANSFORM': { color: '#ffffff', border: 'white', description: 'Morphing effects' }
+        };
+        
+        // Show legend for active properties
+        activeProperties.forEach(property => {
+            const legend = legendDefinitions[property];
+            if (legend) {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                
+                const icon = document.createElement('div');
+                icon.className = 'legend-icon';
+                icon.style.backgroundColor = legend.color;
+                icon.style.opacity = '0.7';
+                icon.style.borderColor = legend.color;
+                
+                const text = document.createElement('div');
+                text.className = 'legend-text';
+                text.textContent = `${property}: ${legend.description}`;
+                
+                legendItem.appendChild(icon);
+                legendItem.appendChild(text);
+                this.visualLegendElement.appendChild(legendItem);
+            }
+        });
+        
+        // Show message if no special properties are active
+        if (activeProperties.length === 0 || activeProperties.every(p => !legendDefinitions[p])) {
+            const noLegendItem = document.createElement('div');
+            noLegendItem.className = 'legend-text';
+            noLegendItem.textContent = 'No special block properties active';
+            noLegendItem.style.fontStyle = 'italic';
+            noLegendItem.style.color = '#888';
+            this.visualLegendElement.appendChild(noLegendItem);
+        }
     }
 }

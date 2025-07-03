@@ -204,11 +204,15 @@ export class RuleConflictResolver {
 
 export class EffectThrottleManager {
     private static readonly THROTTLE_LIMITS: Record<string, { maxPerSecond: number; windowMs: number }> = {
-        'BOMB': { maxPerSecond: 5, windowMs: 1000 },
-        'MULTIPLY': { maxPerSecond: 3, windowMs: 1000 },
-        'SPAWN': { maxPerSecond: 2, windowMs: 1000 },
-        'TELEPORT': { maxPerSecond: 10, windowMs: 1000 },
-        'LIGHTNING': { maxPerSecond: 8, windowMs: 1000 }
+        'BOMB': { maxPerSecond: 6, windowMs: 1000 },
+        'ACID': { maxPerSecond: 3, windowMs: 1000 },
+        'MULTIPLY': { maxPerSecond: 4, windowMs: 1000 },
+        'MAGNET': { maxPerSecond: 7, windowMs: 1000 },
+        'TRANSFORM': { maxPerSecond: 8, windowMs: 1000 },
+        'HEAL': { maxPerSecond: 6, windowMs: 1000 },
+        'SPAWN': { maxPerSecond: 3, windowMs: 1000 },
+        'TELEPORT': { maxPerSecond: 11, windowMs: 1000 },
+        'LIGHTNING': { maxPerSecond: 9, windowMs: 1000 }
     };
 
     public static shouldThrottleEffect(effectName: string, throttles: Map<string, EffectThrottle>): boolean {

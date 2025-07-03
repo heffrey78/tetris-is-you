@@ -24,6 +24,7 @@ export class Game {
         this.uiManager = new UIManager();
         this.gameLogic = new GameLogic(this.gameState, this.ruleEngine, this.wordQueue, this.gameLogger);
         this.gameLogic.setUIManager(this.uiManager);
+        this.gameLogic.setEffectManager(this.renderer.getEffectManager());
         this.gameLogger.logInfo('GAME', 'Game initialized with enhanced rule engine and logging');
     }
     setupCanvas() {
@@ -161,8 +162,9 @@ export class Game {
         }
     }
     render() {
-        this.renderer.render(this.gameState);
+        this.renderer.render(this.gameState, this.frameTime);
         this.uiManager.updateUI(this.gameState);
+        this.uiManager.updateScore(this.gameState.score, this.gameState.level, this.gameState.linesCleared);
     }
     handleKeyDown(event) {
         switch (event.code) {
@@ -200,10 +202,8 @@ export class Game {
                 this.gameLogic.testSpellEffects();
                 break;
             case 'KeyV':
-                // Test visual spell notifications directly
-                this.uiManager.showSpellEffectNotification('BOMB', 1);
-                setTimeout(() => this.uiManager.showSpellEffectNotification('LIGHTNING', 1), 1000);
-                setTimeout(() => this.uiManager.showSpellEffectNotification('SPELL_COMBO', 3), 2000);
+                // Test all visual block states
+                this.gameLogic.testVisualStates();
                 break;
             case 'KeyL':
                 // Download game logs
