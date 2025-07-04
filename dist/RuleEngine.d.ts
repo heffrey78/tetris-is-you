@@ -1,4 +1,5 @@
 import { Rule, WordQueueItem, GameState, RuleConflict, EffectThrottle } from './types.js';
+import { GameConfig } from './GameConfig.js';
 import type { GameLogger } from './GameLogger.js';
 export declare class RuleEngine {
     private rules;
@@ -6,8 +7,9 @@ export declare class RuleEngine {
     private ruleConflicts;
     private effectThrottles;
     private logger?;
+    private config;
     private readonly PRIORITY_LEVELS;
-    constructor(logger?: GameLogger);
+    constructor(logger?: GameLogger, config?: GameConfig);
     setLogger(logger: GameLogger): void;
     private initializeBasicRules;
     addRule(noun: string, property: string): string;

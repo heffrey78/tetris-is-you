@@ -89,7 +89,10 @@ export class RuleEffects {
         'SPAWN': {
             name: 'SPAWN', 
             description: 'Creates new random blocks above it every 5 seconds',
-            applyToPhysics: () => ({ shouldFall: false, shouldDestroy: false }),
+            applyToPhysics: (block, gameState) => {
+                // Mark this block as a spawner and trigger spawning logic
+                return { shouldFall: false, shouldDestroy: false };
+            },
             visualEffect: () => ({ glow: true, animation: 'birth', opacity: 1.0 })
         },
         
@@ -108,9 +111,10 @@ export class RuleEffects {
             name: 'HEAL',
             description: 'Repairs damaged blocks in a 5x5 area around it',
             applyToPhysics: (block, gameState) => {
+                // HEAL blocks restore structural integrity to nearby blocks
                 return { shouldFall: false, shouldDestroy: false };
             },
-            visualEffect: () => ({ glow: true, animation: 'heal', opacity: 1.0 })
+            visualEffect: () => ({ glow: true, animation: 'heal', opacity: 1.0, glowColor: '#00ff44' })
         },
         
         'REVEAL': {
@@ -124,7 +128,14 @@ export class RuleEffects {
             name: 'SLOW',
             description: 'Reduces falling speed of all pieces by 50% while active',
             applyToPhysics: () => ({ shouldFall: false, shouldDestroy: false }),
-            visualEffect: () => ({ glow: true, animation: 'time', opacity: 0.9 })
+            visualEffect: () => ({ glow: true, animation: 'time', opacity: 0.9, glowColor: '#88ddff' })
+        },
+        
+        'FAST': {
+            name: 'FAST',
+            description: 'Increases falling speed of all pieces by 70% while active',
+            applyToPhysics: () => ({ shouldFall: false, shouldDestroy: false }),
+            visualEffect: () => ({ glow: true, animation: 'time', opacity: 0.9, glowColor: '#ff4444' })
         },
         
         // Basic Properties (still needed for core gameplay)
@@ -188,12 +199,33 @@ export class RuleEffects {
         // State Properties
         'MELT': {
             name: 'MELT',
-            description: 'Blocks disappear after a short time',
+            description: 'Blocks disappear after 10 seconds',
             applyToPhysics: (block, gameState) => {
-                // Timer-based destruction
-                return { shouldFall: false, shouldDestroy: true }; // Will implement timer
+                // Add melting timer to block if not already present
+                const meltBlock = block as any;
+                if (!meltBlock.meltTimer) {
+                    meltBlock.meltTimer = 10000; // 10 seconds
+                    meltBlock.meltStartTime = Date.now();
+                }
+                
+                // Check if melt time has elapsed
+                const elapsed = Date.now() - meltBlock.meltStartTime;
+                if (elapsed >= meltBlock.meltTimer) {
+                    return { shouldFall: false, shouldDestroy: true };
+                }
+                
+                return { shouldFall: false, shouldDestroy: false };
             },
-            visualEffect: () => ({ opacity: 0.5, animation: 'dissolve' })
+            visualEffect: (block) => {
+                const meltBlock = block as any;
+                if (meltBlock.meltTimer && meltBlock.meltStartTime) {
+                    const elapsed = Date.now() - meltBlock.meltStartTime;
+                    const progress = elapsed / meltBlock.meltTimer;
+                    const opacity = Math.max(0.2, 1.0 - (progress * 0.8)); // Fade out as it melts
+                    return { opacity, animation: 'dissolve', glowColor: '#ff6600' };
+                }
+                return { opacity: 0.8, animation: 'dissolve', glowColor: '#ff6600' };
+            }
         }
     };
     

@@ -5,17 +5,21 @@ import { WordQueue } from './WordQueue.js';
 import { RuleEffects } from './RuleEffects.js';
 import type { GameLogger } from './GameLogger.js';
 import type { EffectManager } from './EffectManager.js';
+import type { AudioSystem } from './AudioSystem.js';
 
 export class GameLogic {
     private dropTimer: number = 0;
     private baseDropInterval: number = 1000; // 1 second base speed
     private dropInterval: number = 1000; // Current drop interval
+    private spawnTimer: number = 0;
+    private spawnInterval: number = 5000; // 5 seconds for SPAWN blocks
     private gameState: GameState;
     private ruleEngine: RuleEngine;
     private wordQueue: WordQueue;
     private logger?: GameLogger;
     private uiManager?: any; // Will be set from Game class
     private effectManager?: EffectManager; // Will be set from Game class
+    private audioSystem?: AudioSystem; // Will be set from Game class
 
     constructor(gameState: GameState, ruleEngine: RuleEngine, wordQueue: WordQueue, logger?: GameLogger) {
         this.gameState = gameState;
@@ -28,8 +32,16 @@ export class GameLogic {
         this.uiManager = uiManager;
     }
     
+    public setRuleEngine(ruleEngine: RuleEngine): void {
+        this.ruleEngine = ruleEngine;
+    }
+    
     public setEffectManager(effectManager: EffectManager): void {
         this.effectManager = effectManager;
+    }
+    
+    public setAudioSystem(audioSystem: AudioSystem): void {
+        this.audioSystem = audioSystem;
     }
 
     public update(deltaTime: number): void {
@@ -39,6 +51,9 @@ export class GameLogic {
 
         // Handle piece falling
         this.updatePieceFalling(deltaTime);
+        
+        // Handle SPAWN block effects
+        this.updateSpawnBlocks(deltaTime);
 
         // Spawn new piece if needed
         if (!this.gameState.currentPiece) {
@@ -77,6 +92,94 @@ export class GameLogic {
             this.dropTimer = 0;
             this.movePieceDown();
         }
+    }
+
+    private updateSpawnBlocks(deltaTime: number): void {
+        // Check if there are any SPAWN blocks active
+        const hasSpawnBlocks = this.ruleEngine.hasProperty('BLOCK', 'SPAWN') || 
+                             this.ruleEngine.hasProperty('I', 'SPAWN') ||
+                             this.ruleEngine.hasProperty('O', 'SPAWN') ||
+                             this.ruleEngine.hasProperty('T', 'SPAWN') ||
+                             this.ruleEngine.hasProperty('L', 'SPAWN') ||
+                             this.ruleEngine.hasProperty('J', 'SPAWN') ||
+                             this.ruleEngine.hasProperty('S', 'SPAWN') ||
+                             this.ruleEngine.hasProperty('Z', 'SPAWN');
+
+        if (!hasSpawnBlocks) {
+            this.spawnTimer = 0;
+            return;
+        }
+
+        this.spawnTimer += deltaTime;
+        if (this.spawnTimer >= this.spawnInterval) {
+            this.spawnTimer = 0;
+            this.triggerSpawnEffect();
+        }
+    }
+
+    private triggerSpawnEffect(): void {
+        // Find all SPAWN blocks on the playfield
+        const spawnBlocks: {x: number, y: number}[] = [];
+        
+        for (let row = 0; row < LAYOUT.PLAYFIELD_ROWS; row++) {
+            for (let col = 0; col < LAYOUT.PLAYFIELD_COLS; col++) {
+                const block = this.gameState.playfield[row][col];
+                if (block) {
+                    // Check if this block has SPAWN property
+                    const rules = this.ruleEngine.getActiveRules();
+                    const blockRules = rules.filter(rule => 
+                        rule.noun === 'BLOCK' || rule.noun === block.type.toUpperCase()
+                    );
+                    
+                    if (blockRules.some(rule => rule.property === 'SPAWN')) {
+                        spawnBlocks.push({x: col, y: row});
+                    }
+                }
+            }
+        }
+
+        // Create new blocks above each spawn block
+        spawnBlocks.forEach(spawner => {
+            const targetRow = spawner.y - 1;
+            
+            // Only spawn if the space above is empty and within bounds
+            if (targetRow >= 0 && !this.gameState.playfield[targetRow][spawner.x]) {
+                // Create a random colored block
+                const colors = [
+                    { r: 255, g: 100, b: 100 }, // Red
+                    { r: 100, g: 255, b: 100 }, // Green  
+                    { r: 100, g: 100, b: 255 }, // Blue
+                    { r: 255, g: 255, b: 100 }, // Yellow
+                    { r: 255, g: 100, b: 255 }, // Magenta
+                    { r: 100, g: 255, b: 255 }  // Cyan
+                ];
+                
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                const newBlock: TetrisBlock = {
+                    x: spawner.x,
+                    y: targetRow,
+                    color: randomColor,
+                    solid: true,
+                    type: 'spawned'
+                };
+                
+                this.gameState.playfield[targetRow][spawner.x] = newBlock;
+                
+                console.log(`✨ SPAWN effect: Created new block at (${spawner.x}, ${targetRow})`);
+                
+                // Trigger visual effect
+                if (this.effectManager) {
+                    this.effectManager.addEffect({
+                        type: 'fairy_dust_combo',
+                        gridPosition: { x: spawner.x, y: targetRow },
+                        intensity: 1.0,
+                        duration: 1500,
+                        autoRemove: true
+                    });
+                }
+            }
+        });
     }
 
     public movePieceLeft(): boolean {
@@ -195,6 +298,9 @@ export class GameLogic {
         // Clear current piece
         this.gameState.currentPiece = null;
         
+        // Play piece drop sound
+        this.audioSystem?.playSoundEffect('pieceDrop');
+        
         // Check for completed lines
         const completedLines = this.checkCompletedLines();
         if (completedLines.length > 0) {
@@ -282,6 +388,9 @@ export class GameLogic {
         this.gameState.linesCleared += lines.length;
         this.gameState.score += this.calculateScore(lines.length);
         
+        // Play line clear sound
+        this.audioSystem?.playSoundEffect('lineClear');
+        
         // Update level every 10 lines and increase drop speed
         const newLevel = Math.floor(this.gameState.linesCleared / 10) + 1;
         if (newLevel > this.gameState.level) {
@@ -296,6 +405,11 @@ export class GameLogic {
         const consumedWords = this.wordQueue.consumeWords(wordsNeeded);
         console.log(`🔧 Consumed words:`, consumedWords.map(w => w.word));
         this.ruleEngine.applyLineClearEffect(lines.length, consumedWords);
+        
+        // Play rule formation sound if words were consumed
+        if (consumedWords.length > 0) {
+            this.audioSystem?.playSoundEffect('ruleFormation');
+        }
         
         console.log(`Cleared ${lines.length} lines! Total: ${this.gameState.linesCleared}`);
     }
@@ -810,6 +924,9 @@ export class GameLogic {
     private executeBombSpell(centerRow: number, centerCol: number): void {
         console.log(`💥💥💥 MASSIVE BOMB EXPLOSION at (${centerCol}, ${centerRow})! 💥💥💥`);
         
+        // Play bomb explosion sound
+        this.audioSystem?.playSoundEffect('bombExplosion');
+        
         // Add flame effect at explosion center
         if (this.effectManager) {
             this.effectManager.addEffect({
@@ -831,6 +948,12 @@ export class GameLogic {
                     
                     const targetBlock = this.gameState.playfield[row][col];
                     if (targetBlock) {
+                        // Check if block is protected by SHIELD
+                        if (this.hasSpellProperty(targetBlock, 'SHIELD')) {
+                            console.log(`🛡️ SHIELD protects ${targetBlock.type} block at (${col}, ${row}) from explosion!`);
+                            continue; // Skip destruction for this block
+                        }
+                        
                         console.log(`💥 Destroying block at (${col}, ${row})`);
                         affectedBlocks.push({ x: col, y: row, type: targetBlock.type });
                         
@@ -879,6 +1002,13 @@ export class GameLogic {
         for (let c = 0; c < LAYOUT.PLAYFIELD_COLS; c++) {
             if (this.gameState.playfield[row][c]) {
                 const block = this.gameState.playfield[row][c]!;
+                
+                // Check if block is protected by SHIELD
+                if (this.hasSpellProperty(block, 'SHIELD')) {
+                    console.log(`🛡️ SHIELD protects ${block.type} block at (${c}, ${row}) from lightning!`);
+                    continue; // Skip destruction for this block
+                }
+                
                 console.log(`⚡ Lightning vaporizes ${block.type} block at (${c}, ${row})`);
                 destroyedTypes.push(block.type);
                 this.gameState.playfield[row][c] = null;
@@ -922,6 +1052,13 @@ export class GameLogic {
         for (let r = row + 1; r < LAYOUT.PLAYFIELD_ROWS; r++) {
             if (this.gameState.playfield[r][col]) {
                 const block = this.gameState.playfield[r][col]!;
+                
+                // Check if block is protected by SHIELD
+                if (this.hasSpellProperty(block, 'SHIELD')) {
+                    console.log(`🛡️ SHIELD protects ${block.type} block at (${col}, ${r}) from acid!`);
+                    continue; // Skip dissolution for this block
+                }
+                
                 console.log(`🧪 Acid melts ${block.type} block at (${col}, ${r}) - sizzling and bubbling!`);
                 dissolvedTypes.push(block.type);
                 this.gameState.playfield[r][col] = null;
@@ -933,6 +1070,13 @@ export class GameLogic {
                     for (const spreadCol of spreadCols) {
                         if (this.gameState.playfield[r][spreadCol] && Math.random() < 0.3) {
                             const spreadBlock = this.gameState.playfield[r][spreadCol]!;
+                            
+                            // Check if spread target is protected by SHIELD
+                            if (this.hasSpellProperty(spreadBlock, 'SHIELD')) {
+                                console.log(`🛡️ SHIELD protects ${spreadBlock.type} block at (${spreadCol}, ${r}) from acid spread!`);
+                                continue; // Skip dissolution for this block
+                            }
+                            
                             console.log(`🧪 Acid spreads to dissolve ${spreadBlock.type} at (${spreadCol}, ${r})`);
                             dissolvedTypes.push(spreadBlock.type);
                             this.gameState.playfield[r][spreadCol] = null;

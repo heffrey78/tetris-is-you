@@ -1,5 +1,6 @@
 import { Rule, WordQueueItem, GameState, RuleConflict, EffectThrottle } from './types.js';
 import { RuleConflictResolver, EffectThrottleManager } from './RuleConflictResolver.js';
+import { GameConfig, DEFAULT_CONFIG } from './GameConfig.js';
 import type { GameLogger } from './GameLogger.js';
 
 export class RuleEngine {
@@ -8,6 +9,7 @@ export class RuleEngine {
     private ruleConflicts: RuleConflict[] = [];
     private effectThrottles: Map<string, EffectThrottle> = new Map();
     private logger?: GameLogger;
+    private config: GameConfig;
     
     // Rule priority levels
     private readonly PRIORITY_LEVELS = {
@@ -17,8 +19,9 @@ export class RuleEngine {
         TEMPORARY: 50   // Temporary effects
     };
     
-    constructor(logger?: GameLogger) {
+    constructor(logger?: GameLogger, config: GameConfig = DEFAULT_CONFIG) {
         this.logger = logger;
+        this.config = config;
         this.initializeBasicRules();
     }
     
@@ -27,18 +30,10 @@ export class RuleEngine {
     }
     
     private initializeBasicRules(): void {
-        this.addRuleWithPriority('BLOCK', 'SOLID', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('WALL', 'STOP', this.PRIORITY_LEVELS.BASE, 'base');
-        
-        // Add some initial visual rules to demonstrate the enhanced visual system
-        // These will be randomly applied to tetris pieces during gameplay
-        this.addRuleWithPriority('I', 'LIGHTNING', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('O', 'SHIELD', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('T', 'BOMB', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('L', 'HEAL', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('J', 'FREEZE', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('S', 'GHOST', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('Z', 'MAGNET', this.PRIORITY_LEVELS.BASE, 'base');
+        // Load rules from configuration
+        this.config.initialRules.forEach(rule => {
+            this.addRuleWithPriority(rule.noun, rule.property, rule.priority, 'base');
+        });
     }
     
     public addRule(noun: string, property: string): string {

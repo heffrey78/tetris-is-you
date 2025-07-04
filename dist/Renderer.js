@@ -39,7 +39,9 @@ export class Renderer {
         // Draw main playfield border
         this.ctx.strokeStyle = '#666666';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(this.playfieldStartX, this.playfieldStartY, this.playfieldWidth, this.playfieldHeight);
+        // Position border consistently - inward by half line width to prevent clipping
+        const borderOffset = this.ctx.lineWidth / 2;
+        this.ctx.strokeRect(this.playfieldStartX + borderOffset, this.playfieldStartY + borderOffset, this.playfieldWidth - this.ctx.lineWidth, this.playfieldHeight - this.ctx.lineWidth);
         // Side panel border removed - handled by HTML layout
     }
     drawGrid() {

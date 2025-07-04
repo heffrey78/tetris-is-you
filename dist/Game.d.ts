@@ -1,3 +1,5 @@
+import { GameConfig } from './GameConfig.js';
+import { AudioSystem } from './AudioSystem.js';
 export declare class Game {
     private canvas;
     private renderer;
@@ -6,6 +8,8 @@ export declare class Game {
     private gameLogic;
     private uiManager;
     private gameLogger;
+    private audioSystem;
+    private config;
     private gameLoop;
     private lastTime;
     private fps;
@@ -13,11 +17,23 @@ export declare class Game {
     private isRunning;
     private isPaused;
     private gameState;
-    constructor(canvas: HTMLCanvasElement);
+    constructor(canvas: HTMLCanvasElement, config?: GameConfig);
+    /**
+     * Load and apply a new configuration
+     */
+    loadConfiguration(difficulty: 'easy' | 'normal' | 'hard'): Promise<void>;
+    /**
+     * Get current configuration
+     */
+    getConfiguration(): GameConfig;
+    /**
+     * Get audio system for external control
+     */
+    getAudioSystem(): AudioSystem;
     private setupCanvas;
     private initializeGameState;
     private createEmptyPlayfield;
-    start(): void;
+    start(): Promise<void>;
     stop(): void;
     pause(): void;
     private loop;

@@ -1,0 +1,40 @@
+{
+  "initialRules": [
+    { "noun": "BLOCK", "property": "SOLID", "priority": 100 },
+    { "noun": "WALL", "property": "STOP", "priority": 100 },
+    { "noun": "T", "property": "BOMB", "priority": 100 },
+    { "noun": "I", "property": "LIGHTNING", "priority": 100 },
+    { "noun": "S", "property": "GHOST", "priority": 100 },
+    { "noun": "Z", "property": "MAGNET", "priority": 100 }
+  ],
+  
+  "spellDurations": {
+    "explosion": 1000,
+    "lightning": 800,
+    "acidBath": 1500,
+    "shield": 2000,
+    "freeze": 1500,
+    "magnet": 1500,
+    "teleport": 500,
+    "multiply": 1000,
+    "heal": 750,
+    "transform": 1200
+  },
+  
+  "progression": {
+    "baseDropInterval": 800,
+    "speedIncreasePerLevel": 0.85,
+    "linesPerLevel": 8
+  },
+  
+  "visual": {
+    "enableEnhancedEffects": true,
+    "glowIntensity": 1.0,
+    "animationSpeed": 1.5
+  },
+  
+  "throttling": {
+    "maxEffectsPerSecond": 15,
+    "effectCooldownMs": 50
+  }
+}

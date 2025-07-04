@@ -135,9 +135,275 @@
             color: #ccc;
             font-size: 9px;
         }
+        
+        /* Start Menu Styles */
+        #startMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 1000;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        
+        .start-menu-container {
+            background: #111;
+            border: 3px solid #666;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            max-width: 800px;
+            width: 95%;
+            box-shadow: 0 0 20px rgba(102, 102, 102, 0.3);
+            margin: auto;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .start-menu-title {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        
+        .start-menu-subtitle {
+            font-size: 16px;
+            margin-bottom: 30px;
+            color: #ccc;
+        }
+        
+        .rule-selection-container {
+            margin: 30px 0;
+            text-align: left;
+        }
+        
+        .rule-selection-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #fff;
+            text-align: center;
+        }
+        
+        .rule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .rule-category {
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px;
+            background: #1a1a1a;
+        }
+        
+        .category-title {
+            font-size: 14px;
+            margin: 0 0 10px 0;
+            color: #0ff;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        
+        .rule-option {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 6px;
+        }
+        
+        .rule-option:hover {
+            border-color: #666;
+            background: #333;
+        }
+        
+        .rule-option.selected {
+            border-color: #0ff;
+            background: #003;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        
+        .rule-checkbox {
+            margin-right: 10px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .rule-description {
+            flex: 1;
+        }
+        
+        .rule-name {
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+        
+        .rule-details {
+            font-size: 10px;
+            color: #aaa;
+            line-height: 1.2;
+        }
+        
+        /* Custom scrollbar for rule grid */
+        .rule-grid::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .rule-grid::-webkit-scrollbar-track {
+            background: #222;
+            border-radius: 4px;
+        }
+        
+        .rule-grid::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+        
+        .rule-grid::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+        
+        .start-menu-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .start-menu-container::-webkit-scrollbar-track {
+            background: #111;
+            border-radius: 4px;
+        }
+        
+        .start-menu-container::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+        
+        .start-menu-container::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+        
+        .menu-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .menu-button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            background: #333;
+            color: #fff;
+            border: 2px solid #666;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-button:hover {
+            background: #555;
+            border-color: #888;
+        }
+        
+        .menu-button.primary {
+            background: #0a5;
+            border-color: #0c7;
+        }
+        
+        .menu-button.primary:hover {
+            background: #0c7;
+            border-color: #0e9;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Responsive design for smaller screens */
+        @media (max-height: 700px) {
+            .start-menu-container {
+                padding: 20px;
+                max-height: calc(100vh - 20px);
+            }
+            
+            .start-menu-title {
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+            
+            .start-menu-subtitle {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            
+            .rule-grid {
+                max-height: 50vh;
+                gap: 10px;
+            }
+            
+            .rule-category {
+                padding: 8px;
+            }
+            
+            .rule-option {
+                padding: 6px;
+                margin-bottom: 4px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .rule-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .start-menu-container {
+                width: 98%;
+                padding: 15px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Start Menu -->
+    <div id="startMenu">
+        <div class="start-menu-container">
+            <h1 class="start-menu-title">Tetris Is You</h1>
+            <p class="start-menu-subtitle">Rule-Based Tetris with Magical Transformations</p>
+            
+            <div class="rule-selection-container">
+                <h2 class="rule-selection-title">Choose Your Starting Rules</h2>
+                <div class="rule-grid" id="ruleGrid">
+                    <!-- Rule options will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="menu-buttons">
+                <button class="menu-button" id="resetRulesBtn">Reset to Default</button>
+                <button class="menu-button primary" id="startGameBtn">Start Game</button>
+            </div>
+        </div>
+    </div>
+
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="sidePanel">
@@ -147,6 +413,14 @@
                     <div class="score-item">Score: <span id="currentScore">0</span></div>
                     <div class="score-item">Level: <span id="currentLevel">1</span></div>
                     <div class="score-item">Lines: <span id="linesCleared">0</span></div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">Difficulty</div>
+                <div id="difficultyDisplay">
+                    <div class="score-item">Mode: <span id="currentDifficulty">Normal</span></div>
+                    <div class="score-item">F1: Easy | F2: Normal | F3: Hard</div>
                 </div>
             </div>
             

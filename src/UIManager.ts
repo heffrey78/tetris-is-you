@@ -39,7 +39,7 @@ export class UIManager {
         this.updateActiveRules(gameState.rules);
         this.updateRuleMatrix(gameState.ruleMatrix);
         this.updateWordQueue(gameState.wordQueue);
-        this.updateNextPiecePreview(gameState.nextPiece);
+        this.updateNextPiecePreview(gameState.nextPiece, gameState.rules);
         this.updateVisualLegend(gameState.rules);
     }
 
@@ -221,11 +221,26 @@ export class UIManager {
         }, 3000);
     }
 
-    private updateNextPiecePreview(nextPiece: TetrisPiece | null): void {
+    private updateNextPiecePreview(nextPiece: TetrisPiece | null, rules: Rule[] = []): void {
         // Clear the canvas
         this.nextPieceCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height);
         
         if (!nextPiece) return;
+        
+        // Check if REVEAL effect is active
+        const hasReveal = rules.some(rule => rule.property === 'REVEAL');
+        
+        if (hasReveal) {
+            // Enhanced preview mode: show additional information
+            this.nextPieceCtx.fillStyle = '#ffff00';
+            this.nextPieceCtx.font = '10px monospace';
+            this.nextPieceCtx.fillText('REVEAL ACTIVE', 5, 15);
+            this.nextPieceCtx.fillText(`Type: ${nextPiece.type}`, 5, 115);
+            
+            // Add glow effect to indicate enhanced preview
+            this.nextPieceCtx.shadowColor = '#00ff88';
+            this.nextPieceCtx.shadowBlur = 10;
+        }
         
         // Draw the next piece in the center of the small canvas
         const blockSize = 20;
@@ -261,6 +276,10 @@ export class UIManager {
             // Draw border
             this.nextPieceCtx.strokeRect(x, y, blockSize, blockSize);
         }
+        
+        // Reset shadow effects
+        this.nextPieceCtx.shadowColor = 'transparent';
+        this.nextPieceCtx.shadowBlur = 0;
     }
 
     private updateVisualLegend(rules: Rule[]): void {

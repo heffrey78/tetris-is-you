@@ -5,6 +5,9 @@ import { GameLogic } from './GameLogic.js';
 import { TetrisPiece } from './TetrisPiece.js';
 import { UIManager } from './UIManager.js';
 import { GameLogger } from './GameLogger.js';
+import { ConfigLoader } from './ConfigLoader.js';
+import { GameConfig, DEFAULT_CONFIG } from './GameConfig.js';
+import { AudioSystem } from './AudioSystem.js';
 import { GameState, LAYOUT, Color, PlayfieldCell } from './types.js';
 
 export class Game {
@@ -15,6 +18,8 @@ export class Game {
     private gameLogic: GameLogic;
     private uiManager: UIManager;
     private gameLogger: GameLogger;
+    private audioSystem: AudioSystem;
+    private config: GameConfig;
     private gameLoop: number = 0;
     private lastTime: number = 0;
     private fps: number = 60;
@@ -25,11 +30,13 @@ export class Game {
     private isPaused: boolean = false;
     private gameState!: GameState;
     
-    constructor(canvas: HTMLCanvasElement) {
+    constructor(canvas: HTMLCanvasElement, config: GameConfig = DEFAULT_CONFIG) {
         this.canvas = canvas;
+        this.config = config;
         this.renderer = new Renderer(canvas);
         this.gameLogger = new GameLogger();
-        this.ruleEngine = new RuleEngine(this.gameLogger);
+        this.audioSystem = new AudioSystem();
+        this.ruleEngine = new RuleEngine(this.gameLogger, this.config);
         this.wordQueue = new WordQueue();
         
         this.setupCanvas();
@@ -38,8 +45,37 @@ export class Game {
         this.gameLogic = new GameLogic(this.gameState, this.ruleEngine, this.wordQueue, this.gameLogger);
         this.gameLogic.setUIManager(this.uiManager);
         this.gameLogic.setEffectManager(this.renderer.getEffectManager());
+        this.gameLogic.setAudioSystem(this.audioSystem);
         
-        this.gameLogger.logInfo('GAME', 'Game initialized with enhanced rule engine and logging');
+        this.gameLogger.logInfo('GAME', 'Game initialized with enhanced rule engine and configuration');
+    }
+    
+    /**
+     * Load and apply a new configuration
+     */
+    public async loadConfiguration(difficulty: 'easy' | 'normal' | 'hard'): Promise<void> {
+        const configLoader = ConfigLoader.getInstance();
+        this.config = await configLoader.loadDifficultyConfig(difficulty);
+        
+        // Reinitialize the RuleEngine with the new config
+        this.ruleEngine = new RuleEngine(this.gameLogger, this.config);
+        this.gameLogic.setRuleEngine(this.ruleEngine);
+        
+        this.gameLogger.logInfo('GAME', `Configuration loaded: ${difficulty} mode`);
+    }
+    
+    /**
+     * Get current configuration
+     */
+    public getConfiguration(): GameConfig {
+        return this.config;
+    }
+    
+    /**
+     * Get audio system for external control
+     */
+    public getAudioSystem(): AudioSystem {
+        return this.audioSystem;
     }
     
     private setupCanvas(): void {
@@ -70,9 +106,10 @@ export class Game {
             const heightScale = availableHeight / (idealPlayfieldHeight + LAYOUT.MARGIN * 2);
             const scale = Math.min(widthScale, heightScale, 1.0); // Don't scale up beyond 1.0
             
-            // Set final canvas dimensions
-            this.canvas.width = Math.floor(idealCanvasWidth * scale);
-            this.canvas.height = Math.floor((idealPlayfieldHeight + LAYOUT.MARGIN * 2) * scale);
+            // Set final canvas dimensions with extra space for borders
+            const borderPadding = 6; // Extra space for 3px border on each side
+            this.canvas.width = Math.floor(idealCanvasWidth * scale) + borderPadding;
+            this.canvas.height = Math.floor((idealPlayfieldHeight + LAYOUT.MARGIN * 2) * scale) + borderPadding;
             
             // Update layout constants to match scaled canvas
             const scaledGridSize = Math.floor(baseGridSize * scale);
@@ -86,8 +123,9 @@ export class Game {
             
         } else {
             // Fallback to fixed size with proper proportions
-            this.canvas.width = 800; // 80%
-            this.canvas.height = 600;
+            const borderPadding = 6; // Extra space for borders
+            this.canvas.width = 800 + borderPadding; // 80%
+            this.canvas.height = 600 + borderPadding;
             (LAYOUT as any).SCALED_GRID_SIZE = LAYOUT.GRID_SIZE;
             (LAYOUT as any).SCALED_MARGIN = LAYOUT.MARGIN;
             (LAYOUT as any).PLAYFIELD_PIXEL_WIDTH = LAYOUT.PLAYFIELD_COLS * LAYOUT.GRID_SIZE;
@@ -128,14 +166,19 @@ export class Game {
     }
     
     
-    public start(): void {
+    public async start(): Promise<void> {
         if (this.isRunning) return;
         
         this.isRunning = true;
+        
+        // Initialize audio system
+        await this.audioSystem.resumeContext();
+        this.audioSystem.playMusic();
+        
         this.lastTime = performance.now();
         this.gameLoop = requestAnimationFrame((time) => this.loop(time));
         
-        console.log('Game started');
+        console.log('Game started with audio system');
     }
     
     public stop(): void {

@@ -1,6 +1,7 @@
 import { RuleConflictResolver, EffectThrottleManager } from './RuleConflictResolver.js';
+import { DEFAULT_CONFIG } from './GameConfig.js';
 export class RuleEngine {
-    constructor(logger) {
+    constructor(logger, config = DEFAULT_CONFIG) {
         this.rules = new Map();
         this.ruleCounter = 0;
         this.ruleConflicts = [];
@@ -13,23 +14,17 @@ export class RuleEngine {
             TEMPORARY: 50 // Temporary effects
         };
         this.logger = logger;
+        this.config = config;
         this.initializeBasicRules();
     }
     setLogger(logger) {
         this.logger = logger;
     }
     initializeBasicRules() {
-        this.addRuleWithPriority('BLOCK', 'SOLID', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('WALL', 'STOP', this.PRIORITY_LEVELS.BASE, 'base');
-        // Add some initial visual rules to demonstrate the enhanced visual system
-        // These will be randomly applied to tetris pieces during gameplay
-        this.addRuleWithPriority('I', 'LIGHTNING', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('O', 'SHIELD', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('T', 'BOMB', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('L', 'HEAL', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('J', 'FREEZE', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('S', 'GHOST', this.PRIORITY_LEVELS.BASE, 'base');
-        this.addRuleWithPriority('Z', 'MAGNET', this.PRIORITY_LEVELS.BASE, 'base');
+        // Load rules from configuration
+        this.config.initialRules.forEach(rule => {
+            this.addRuleWithPriority(rule.noun, rule.property, rule.priority, 'base');
+        });
     }
     addRule(noun, property) {
         return this.addRuleWithPriority(noun, property, this.PRIORITY_LEVELS.LINE_CLEAR, 'line-clear');

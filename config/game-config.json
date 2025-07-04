@@ -1,0 +1,38 @@
+{
+  "initialRules": [
+    { "noun": "BLOCK", "property": "SOLID", "priority": 100 },
+    { "noun": "WALL", "property": "STOP", "priority": 100 },
+    { "noun": "T", "property": "BOMB", "priority": 100 },
+    { "noun": "I", "property": "LIGHTNING", "priority": 100 }
+  ],
+  
+  "spellDurations": {
+    "explosion": 2000,
+    "lightning": 1500,
+    "acidBath": 2000,
+    "shield": 3000,
+    "freeze": 2500,
+    "magnet": 2000,
+    "teleport": 1000,
+    "multiply": 1500,
+    "heal": 1000,
+    "transform": 2000
+  },
+  
+  "progression": {
+    "baseDropInterval": 1000,
+    "speedIncreasePerLevel": 0.9,
+    "linesPerLevel": 10
+  },
+  
+  "visual": {
+    "enableEnhancedEffects": true,
+    "glowIntensity": 0.7,
+    "animationSpeed": 1.0
+  },
+  
+  "throttling": {
+    "maxEffectsPerSecond": 10,
+    "effectCooldownMs": 100
+  }
+}

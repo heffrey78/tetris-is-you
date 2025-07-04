@@ -1,0 +1,36 @@
+{
+  "initialRules": [
+    { "noun": "BLOCK", "property": "SOLID", "priority": 100 },
+    { "noun": "WALL", "property": "STOP", "priority": 100 }
+  ],
+  
+  "spellDurations": {
+    "explosion": 3000,
+    "lightning": 2000,
+    "acidBath": 3000,
+    "shield": 4000,
+    "freeze": 3000,
+    "magnet": 2500,
+    "teleport": 1500,
+    "multiply": 2000,
+    "heal": 1500,
+    "transform": 2500
+  },
+  
+  "progression": {
+    "baseDropInterval": 1500,
+    "speedIncreasePerLevel": 0.95,
+    "linesPerLevel": 15
+  },
+  
+  "visual": {
+    "enableEnhancedEffects": true,
+    "glowIntensity": 0.5,
+    "animationSpeed": 0.8
+  },
+  
+  "throttling": {
+    "maxEffectsPerSecond": 5,
+    "effectCooldownMs": 200
+  }
+}
