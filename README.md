@@ -2,6 +2,23 @@
 
 A revolutionary rule-based Tetris game where the rules themselves become part of the gameplay. Inspired by "Baba Is You", this game transforms traditional Tetris into a dynamic puzzle experience where clearing lines creates new rules that change how the game behaves.
 
+## 📸 Screenshots
+
+### Start Menu & Rule Selection
+![Start Menu](docs/screenshots/start-menu.png)
+*Choose your starting rules from an intuitive categorized interface*
+
+### Gameplay with Visual Effects
+![Explosive Effects](docs/screenshots/gameplay-explosion.png)
+*BOMB effects create stunning explosions with particle systems*
+
+![Magical Effects](docs/screenshots/gameplay-magic.png) 
+*MAGNET and other magical effects with colorful particle rings*
+
+### Settings & Configuration
+![Pause Menu](docs/screenshots/pause-menu.png)
+*In-game settings for difficulty and visual effects - accessible through pause menu*
+
 ## 🎮 Features
 
 ### Core Gameplay
@@ -16,7 +33,10 @@ A revolutionary rule-based Tetris game where the rules themselves become part of
 - **Rule Selection**: 20+ available rules organized by category (Destruction, Movement, Protection, etc.)
 - **Live Rule Display**: Real-time visualization of active rules and conflicts
 - **Visual Legend**: Instant reference for all block appearances and effects
-- **Responsive Design**: Optimized for all screen sizes with scrollable interfaces
+- **In-Game Settings**: Difficulty and effect settings accessible through pause menu
+- **Effect Intensity Controls**: Real-time performance tuning with quality presets and sliders
+- **Clean Layout**: Optimized 80/20 split with no scrollbars for distraction-free gameplay
+- **Settings Persistence**: All configuration changes saved automatically
 
 ### Audio System
 - **MIDI-Style Soundtrack**: Original ominous wizard-themed background music
@@ -59,7 +79,9 @@ A revolutionary rule-based Tetris game where the rules themselves become part of
 ### Basic Controls
 - **Arrow Keys**: Move and rotate pieces
 - **Space**: Hard drop
-- **F1/F2/F3**: Switch difficulty (Easy/Normal/Hard)
+- **P**: Pause/Resume (access settings)
+- **R**: Restart game (when game over)
+- **F1/F2/F3**: Quick difficulty switching (Easy/Normal/Hard)
 - **Escape**: Return to start menu
 
 ### Rule System
@@ -67,6 +89,13 @@ A revolutionary rule-based Tetris game where the rules themselves become part of
 2. **Clear Lines**: Clearing lines consumes words from the queue to create new rules
 3. **Watch Transformations**: Rules change how blocks behave (BOMB explodes, GHOST phases through)
 4. **Strategic Planning**: Plan your moves considering active rules and their interactions
+
+### Settings & Performance
+- **Pause Menu Access**: Press **P** to access difficulty and effect settings during gameplay
+- **Effect Quality**: Choose from Low/Medium/High/Ultra presets for optimal performance
+- **Performance Tuning**: Adjust max concurrent effects (5-20) and particle density (20%-200%)
+- **Real-time Updates**: All settings changes apply immediately without restarting
+- **Auto-save**: Settings persist between game sessions
 
 ### Available Effects
 

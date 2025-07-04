@@ -1,4 +1,5 @@
 import { GameState } from './types.js';
+import { GameConfig } from './GameConfig.js';
 export declare class UIManager {
     private activeRulesElement;
     private ruleMatrixElement;
@@ -9,7 +10,14 @@ export declare class UIManager {
     private nextPieceCanvas;
     private nextPieceCtx;
     private visualLegendElement;
+    private effectSettingsCallback?;
+    private currentConfig?;
     constructor();
+    setEffectSettingsCallback(callback: (config: Partial<GameConfig>) => void): void;
+    private setupOverlaySettings;
+    private updateDifficultyButtonStyles;
+    private setupOverlayEffectSettings;
+    updateEffectSettings(config: GameConfig): void;
     updateUI(gameState: GameState): void;
     private updateActiveRules;
     private updateRuleMatrix;
@@ -21,7 +29,6 @@ export declare class UIManager {
     private hideOverlay;
     hideGameOver(): void;
     updateScore(score: number, level: number, linesCleared: number): void;
-    showSpellEffectNotification(spellName: string, comboLevel?: number): void;
     showRuleChangeAnimation(ruleChange: string): void;
     private updateNextPiecePreview;
     private updateVisualLegend;

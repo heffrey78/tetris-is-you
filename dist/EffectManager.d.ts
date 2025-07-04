@@ -1,4 +1,5 @@
 import { Position } from './types.js';
+import { GameConfig } from './GameConfig.js';
 import { AcidPool } from './effects/AcidEffect.js';
 import { CrumblingBrickEffect } from './effects/CrumblingBrickEffect.js';
 import { BigExplosionEffect } from './effects/BigExplosionEffect.js';
@@ -56,7 +57,12 @@ export declare class EffectManager {
     private playfieldStartY;
     private gridSize;
     private nextEffectId;
+    private config;
     constructor(canvas: HTMLCanvasElement);
+    /**
+     * Set the game configuration for effect intensity control
+     */
+    setConfig(config: GameConfig): void;
     /**
      * Add a new effect at the specified grid position
      */

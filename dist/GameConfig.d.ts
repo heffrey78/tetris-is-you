@@ -25,10 +25,20 @@ export interface GameConfig {
         enableEnhancedEffects: boolean;
         glowIntensity: number;
         animationSpeed: number;
+        effectQuality: 'low' | 'medium' | 'high' | 'ultra';
     };
     throttling: {
         maxEffectsPerSecond: number;
         effectCooldownMs: number;
+    };
+    effectIntensity: {
+        particleCount: number;
+        lightningComplexity: number;
+        explosionRadius: number;
+        sparkDensity: number;
+        glowRadius: number;
+        animationDuration: number;
+        maxConcurrentEffects: number;
     };
 }
 export declare const DEFAULT_CONFIG: GameConfig;
@@ -60,10 +70,20 @@ export declare const DIFFICULTY_CONFIGS: {
             enableEnhancedEffects: boolean;
             glowIntensity: number;
             animationSpeed: number;
+            effectQuality: "low" | "medium" | "high" | "ultra";
         };
         throttling: {
             maxEffectsPerSecond: number;
             effectCooldownMs: number;
+        };
+        effectIntensity: {
+            particleCount: number;
+            lightningComplexity: number;
+            explosionRadius: number;
+            sparkDensity: number;
+            glowRadius: number;
+            animationDuration: number;
+            maxConcurrentEffects: number;
         };
     };
     NORMAL: GameConfig;
@@ -94,10 +114,58 @@ export declare const DIFFICULTY_CONFIGS: {
             enableEnhancedEffects: boolean;
             glowIntensity: number;
             animationSpeed: number;
+            effectQuality: "low" | "medium" | "high" | "ultra";
         };
         throttling: {
             maxEffectsPerSecond: number;
             effectCooldownMs: number;
         };
+        effectIntensity: {
+            particleCount: number;
+            lightningComplexity: number;
+            explosionRadius: number;
+            sparkDensity: number;
+            glowRadius: number;
+            animationDuration: number;
+            maxConcurrentEffects: number;
+        };
+    };
+};
+export declare const EFFECT_QUALITY_PRESETS: {
+    low: {
+        particleCount: number;
+        lightningComplexity: number;
+        explosionRadius: number;
+        sparkDensity: number;
+        glowRadius: number;
+        animationDuration: number;
+        maxConcurrentEffects: number;
+    };
+    medium: {
+        particleCount: number;
+        lightningComplexity: number;
+        explosionRadius: number;
+        sparkDensity: number;
+        glowRadius: number;
+        animationDuration: number;
+        maxConcurrentEffects: number;
+    };
+    high: {
+        particleCount: number;
+        lightningComplexity: number;
+        explosionRadius: number;
+        sparkDensity: number;
+        glowRadius: number;
+        animationDuration: number;
+        maxConcurrentEffects: number;
+    };
+    ultra: {
+        particleCount: number;
+        lightningComplexity: number;
+        explosionRadius: number;
+        sparkDensity: number;
+        glowRadius: number;
+        animationDuration: number;
+        maxConcurrentEffects: number;
     };
 };

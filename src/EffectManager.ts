@@ -1,4 +1,5 @@
 import { Position, Color, LAYOUT } from './types.js';
+import { GameConfig } from './GameConfig.js';
 import { AcidDrop, AcidBubble, AcidPool } from './effects/AcidEffect.js';
 import { CrumblingBrickEffect } from './effects/CrumblingBrickEffect.js';
 import { FlameParticle } from './effects/FlameEffect.js';
@@ -66,6 +67,7 @@ export class EffectManager {
     private playfieldStartY: number;
     private gridSize: number;
     private nextEffectId: number = 1;
+    private config: GameConfig | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -83,19 +85,41 @@ export class EffectManager {
     }
 
     /**
+     * Set the game configuration for effect intensity control
+     */
+    public setConfig(config: GameConfig): void {
+        this.config = config;
+    }
+
+    /**
      * Add a new effect at the specified grid position
      */
     public addEffect(config: EffectConfig): string {
+        // Check if we've hit the maximum concurrent effects limit
+        if (this.config && this.effects.size >= this.config.effectIntensity.maxConcurrentEffects) {
+            console.log(`⚠️ EFFECT LIMIT REACHED: Skipping ${config.type} (${this.effects.size}/${this.config.effectIntensity.maxConcurrentEffects})`);
+            return ''; // Return empty ID to indicate effect was not created
+        }
+
         const effectId = `effect_${this.nextEffectId++}`;
         console.log(`✨ CREATING EFFECT: ${config.type} at (${config.gridPosition.x}, ${config.gridPosition.y}) with ID ${effectId}`);
+        
+        // Apply configuration intensity multipliers
+        const intensity = this.config ? 
+            (config.intensity || 1.0) * this.config.effectIntensity.particleCount : 
+            (config.intensity || 1.0);
+        
+        const duration = this.config ? 
+            (config.duration || Infinity) * this.config.effectIntensity.animationDuration : 
+            (config.duration || Infinity);
         
         const effect: ActiveEffect = {
             id: effectId,
             type: config.type,
             gridPosition: config.gridPosition,
             particles: [],
-            intensity: config.intensity || 1.0,
-            duration: config.duration || Infinity,
+            intensity: intensity,
+            duration: duration,
             elapsed: 0,
             active: true,
             autoRemove: config.autoRemove !== undefined ? config.autoRemove : true

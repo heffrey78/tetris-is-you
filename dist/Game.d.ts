@@ -30,6 +30,10 @@ export declare class Game {
      * Get audio system for external control
      */
     getAudioSystem(): AudioSystem;
+    /**
+     * Update effect settings in real-time
+     */
+    updateEffectSettings(configUpdate: Partial<GameConfig>): void;
     private setupCanvas;
     private initializeGameState;
     private createEmptyPlayfield;

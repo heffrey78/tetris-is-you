@@ -72,6 +72,10 @@ export class ConfigLoader {
             throttling: {
                 ...DEFAULT_CONFIG.throttling,
                 ...loadedConfig.throttling
+            },
+            effectIntensity: {
+                ...DEFAULT_CONFIG.effectIntensity,
+                ...loadedConfig.effectIntensity
             }
         };
     }

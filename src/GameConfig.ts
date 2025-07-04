@@ -32,12 +32,24 @@ export interface GameConfig {
         enableEnhancedEffects: boolean;
         glowIntensity: number;
         animationSpeed: number;
+        effectQuality: 'low' | 'medium' | 'high' | 'ultra';
     };
     
     // Effect throttling
     throttling: {
         maxEffectsPerSecond: number;
         effectCooldownMs: number;
+    };
+    
+    // Effect intensity settings
+    effectIntensity: {
+        particleCount: number;          // Multiplier for particle counts (0.1-2.0)
+        lightningComplexity: number;    // Number of branches (0.5-2.0)
+        explosionRadius: number;        // Size multiplier for explosions (0.5-2.0)
+        sparkDensity: number;           // Density of sparks/particles (0.2-2.0)
+        glowRadius: number;             // Shadow blur radius (0.5-2.0)
+        animationDuration: number;      // Duration multiplier (0.5-2.0)
+        maxConcurrentEffects: number;   // Maximum effects at once (1-20)
     };
 }
 
@@ -73,12 +85,23 @@ export const DEFAULT_CONFIG: GameConfig = {
     visual: {
         enableEnhancedEffects: true,
         glowIntensity: 0.7,
-        animationSpeed: 1.0
+        animationSpeed: 1.0,
+        effectQuality: 'high'
     },
     
     throttling: {
         maxEffectsPerSecond: 10,
         effectCooldownMs: 100
+    },
+    
+    effectIntensity: {
+        particleCount: 1.0,
+        lightningComplexity: 1.0,
+        explosionRadius: 1.0,
+        sparkDensity: 1.0,
+        glowRadius: 1.0,
+        animationDuration: 1.0,
+        maxConcurrentEffects: 15
     }
 };
 
@@ -115,5 +138,45 @@ export const DIFFICULTY_CONFIGS = {
             explosion: 1000,    // Shorter duration for more challenge
             acidBath: 1500
         }
+    }
+};
+
+// Effect quality presets
+export const EFFECT_QUALITY_PRESETS = {
+    low: {
+        particleCount: 0.3,
+        lightningComplexity: 0.5,
+        explosionRadius: 0.6,
+        sparkDensity: 0.2,
+        glowRadius: 0.5,
+        animationDuration: 0.7,
+        maxConcurrentEffects: 5
+    },
+    medium: {
+        particleCount: 0.7,
+        lightningComplexity: 0.8,
+        explosionRadius: 0.8,
+        sparkDensity: 0.6,
+        glowRadius: 0.8,
+        animationDuration: 0.9,
+        maxConcurrentEffects: 10
+    },
+    high: {
+        particleCount: 1.0,
+        lightningComplexity: 1.0,
+        explosionRadius: 1.0,
+        sparkDensity: 1.0,
+        glowRadius: 1.0,
+        animationDuration: 1.0,
+        maxConcurrentEffects: 15
+    },
+    ultra: {
+        particleCount: 1.5,
+        lightningComplexity: 1.8,
+        explosionRadius: 1.4,
+        sparkDensity: 1.6,
+        glowRadius: 1.3,
+        animationDuration: 1.2,
+        maxConcurrentEffects: 20
     }
 };

@@ -31,6 +31,11 @@ export class Game {
         this.gameLogic.setUIManager(this.uiManager);
         this.gameLogic.setEffectManager(this.renderer.getEffectManager());
         this.gameLogic.setAudioSystem(this.audioSystem);
+        // Configure EffectManager with intensity settings
+        this.renderer.getEffectManager().setConfig(this.config);
+        // Set up effect settings callback
+        this.uiManager.setEffectSettingsCallback((configUpdate) => this.updateEffectSettings(configUpdate));
+        this.uiManager.updateEffectSettings(this.config);
         this.gameLogger.logInfo('GAME', 'Game initialized with enhanced rule engine and configuration');
     }
     /**
@@ -42,6 +47,8 @@ export class Game {
         // Reinitialize the RuleEngine with the new config
         this.ruleEngine = new RuleEngine(this.gameLogger, this.config);
         this.gameLogic.setRuleEngine(this.ruleEngine);
+        // Update EffectManager with new configuration
+        this.renderer.getEffectManager().setConfig(this.config);
         this.gameLogger.logInfo('GAME', `Configuration loaded: ${difficulty} mode`);
     }
     /**
@@ -55,6 +62,21 @@ export class Game {
      */
     getAudioSystem() {
         return this.audioSystem;
+    }
+    /**
+     * Update effect settings in real-time
+     */
+    updateEffectSettings(configUpdate) {
+        // Merge the update with current config
+        if (configUpdate.visual) {
+            this.config.visual = { ...this.config.visual, ...configUpdate.visual };
+        }
+        if (configUpdate.effectIntensity) {
+            this.config.effectIntensity = { ...this.config.effectIntensity, ...configUpdate.effectIntensity };
+        }
+        // Apply to EffectManager
+        this.renderer.getEffectManager().setConfig(this.config);
+        console.log('🎨 Effect settings updated:', configUpdate);
     }
     setupCanvas() {
         // Calculate optimal canvas size based on container using proper 80/20 split
@@ -299,16 +321,24 @@ export class Game {
         // Hide overlays
         this.uiManager.hideGameOver();
         this.uiManager.hidePauseScreen();
-        // Reset game state
-        this.ruleEngine = new RuleEngine();
+        // Clear existing effects to prevent memory leaks
+        this.renderer.getEffectManager().clear();
+        // Reset game state with proper configuration
+        this.ruleEngine = new RuleEngine(this.gameLogger, this.config);
         this.wordQueue = new WordQueue();
         this.initializeGameState();
-        this.gameLogic = new GameLogic(this.gameState, this.ruleEngine, this.wordQueue);
+        this.gameLogic = new GameLogic(this.gameState, this.ruleEngine, this.wordQueue, this.gameLogger);
+        // Reconnect all dependencies that were lost
+        this.gameLogic.setUIManager(this.uiManager);
+        this.gameLogic.setEffectManager(this.renderer.getEffectManager());
+        this.gameLogic.setAudioSystem(this.audioSystem);
+        // Reconfigure EffectManager with current settings
+        this.renderer.getEffectManager().setConfig(this.config);
         // Reset game flags
         this.isPaused = false;
         this.gameState.paused = false;
         this.gameState.gameOver = false;
-        console.log('Game restarted');
+        console.log('Game restarted with all systems reinitialized');
     }
 }
 //# sourceMappingURL=Game.js.map
