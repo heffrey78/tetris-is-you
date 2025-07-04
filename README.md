@@ -1,6 +1,6 @@
 # Tetris Is You
 
-A revolutionary rule-based Tetris game where the rules themselves become part of the gameplay. Inspired by "Baba Is You", this game transforms traditional Tetris into a dynamic puzzle experience where clearing lines creates new rules that change how the game behaves.
+A rogue-like rule-based Tetris game where the rules themselves become part of the gameplay. Inspired by "Baba Is You", this game transforms traditional Tetris into a dynamic puzzle experience where clearing lines creates new rules that change how the game behaves.
 
 ## 📸 Screenshots
 
@@ -56,7 +56,7 @@ A revolutionary rule-based Tetris game where the rules themselves become part of
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:heffrey78/tetris-is-you.git
    cd tetris-is-you
    ```
 
@@ -70,9 +70,10 @@ A revolutionary rule-based Tetris game where the rules themselves become part of
    npm run build
    ```
 
-4. **Open in browser**
-   - Open `index.html` in your web browser
-   - Or serve locally: `python -m http.server 8000`
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
 
 ## 🎯 How to Play
 
@@ -167,13 +168,6 @@ tetris-is-you/
 └── CONFIG.md           # Configuration guide
 ```
 
-## 🎨 Asset Generation
-
-The project includes Python scripts for generating visual assets:
-- **ComfyUI Integration**: Automated asset generation pipeline
-- **Batch Processing**: Generate multiple asset variations
-- **Consistent Styling**: Maintains visual coherence across all assets
-
 ## 📖 Documentation
 
 - **CONFIG.md**: Comprehensive configuration guide
@@ -190,9 +184,7 @@ npm run build
 
 ### Development Server
 ```bash
-# Serve locally for testing
-python -m http.server 8000
-# Or use any static file server
+npm run dev
 ```
 
 ### Code Style
