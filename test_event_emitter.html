@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventEmitter Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        .event-log {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .event-count {
+            background: #ff9800;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin-left: 10px;
+        }
+        h1 { color: #4CAF50; }
+        h2 { color: #2196F3; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+    </style>
+</head>
+<body>
+    <h1>🎮 EventEmitter Integration Test</h1>
+    
+    <div class="test-container">
+        <h2>🔧 RuleEngine Events</h2>
+        <button onclick="testRuleCreation()">Test Rule Creation</button>
+        <button onclick="testRuleModification()">Test Rule Modification</button>
+        <button onclick="testRuleConflict()">Test Rule Conflict</button>
+        <span id="ruleEventCount" class="event-count">Events: 0</span>
+    </div>
+    
+    <div class="test-container">
+        <h2>🎯 GameLogic Events</h2>
+        <button onclick="testLineClear()">Test Line Clear</button>
+        <button onclick="testSpellEffect()">Test Spell Effect</button>
+        <button onclick="testBlockTransformation()">Test Block Transform</button>
+        <button onclick="testPieceMovement()">Test Piece Movement</button>
+        <span id="gameEventCount" class="event-count">Events: 0</span>
+    </div>
+    
+    <div class="test-container">
+        <h2>📋 Event Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <button onclick="testAllEvents()">🚀 Test All Events</button>
+        <div id="eventLog" class="event-log"></div>
+    </div>
+
+    <script type="module">
+        import { EventEmitter } from './dist/EventEmitter.js';
+        import { RuleEngine } from './dist/RuleEngine.js';
+        import { GameLogic } from './dist/GameLogic.js';
+        import { WordQueue } from './dist/WordQueue.js';
+        import { LAYOUT } from './dist/types.js';
+        import { DEFAULT_CONFIG } from './dist/GameConfig.js';
+
+        let eventLog = [];
+        let ruleEventCount = 0;
+        let gameEventCount = 0;
+        let ruleEngine, gameLogic, gameState, wordQueue;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            eventLog.push(logEntry);
+            
+            const logElement = document.getElementById('eventLog');
+            logElement.textContent = eventLog.slice(-50).join('\n'); // Keep last 50 entries
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            console.log(logEntry);
+        }
+
+        function updateEventCounts() {
+            document.getElementById('ruleEventCount').textContent = `Events: ${ruleEventCount}`;
+            document.getElementById('gameEventCount').textContent = `Events: ${gameEventCount}`;
+        }
+
+        function initializeGame() {
+            // Initialize game state
+            gameState = {
+                score: 0,
+                level: 1,
+                linesCleared: 0,
+                gameOver: false,
+                paused: false,
+                currentPiece: null,
+                nextPiece: null,
+                playfield: Array(LAYOUT.PLAYFIELD_ROWS).fill(null).map(() => 
+                    Array(LAYOUT.PLAYFIELD_COLS).fill(null)
+                ),
+                rules: [],
+                wordQueue: [],
+                ruleMatrix: {
+                    oneLineEffect: '',
+                    twoLineEffect: '',
+                    threeLineEffect: '',
+                    fourLineEffect: ''
+                },
+                ruleConflicts: [],
+                effectThrottles: []
+            };
+
+            // Initialize components
+            ruleEngine = new RuleEngine(null, DEFAULT_CONFIG);
+            wordQueue = new WordQueue();
+            gameLogic = new GameLogic(gameState, ruleEngine, wordQueue);
+
+            // Set up event listeners for RuleEngine
+            ruleEngine.on('rule:created', (event) => {
+                log(`🔧 Rule Created: [${event.rule.noun}] IS [${event.rule.property}] (Priority: ${event.rule.priority})`, 'success');
+                ruleEventCount++;
+                updateEventCounts();
+            });
+
+            ruleEngine.on('rule:modified', (event) => {
+                log(`🔧 Rule Modified: ${event.ruleId} - ${event.changes.field}: ${event.changes.oldValue} → ${event.changes.newValue}`, 'success');
+                ruleEventCount++;
+                updateEventCounts();
+            });
+
+            ruleEngine.on('rule:conflict', (event) => {
+                log(`⚔️ Rule Conflict: ${event.conflict.noun} - Resolution: ${event.conflict.resolution}`, 'success');
+                ruleEventCount++;
+                updateEventCounts();
+            });
+
+            // Set up event listeners for GameLogic
+            gameLogic.on('game:lineClear', (event) => {
+                log(`🎯 Line Clear: ${event.linesCleared} lines, +${event.score} points, Level ${event.level}`, 'success');
+                gameEventCount++;
+                updateEventCounts();
+            });
+
+            gameLogic.on('game:spellEffect', (event) => {
+                log(`⚡ Spell Effect: ${event.spellName} at (${event.position.x}, ${event.position.y}) - Intensity: ${event.intensity}`, 'success');
+                gameEventCount++;
+                updateEventCounts();
+            });
+
+            gameLogic.on('game:blockTransformation', (event) => {
+                log(`🔮 Block Transform: ${event.transformationType} at (${event.position.x}, ${event.position.y}) - Cause: ${event.ruleCause}`, 'success');
+                gameEventCount++;
+                updateEventCounts();
+            });
+
+            gameLogic.on('game:pieceMovement', (event) => {
+                log(`🎮 Piece Movement: ${event.pieceType} moved ${event.movement} to (${event.position.x}, ${event.position.y})`, 'success');
+                gameEventCount++;
+                updateEventCounts();
+            });
+
+            gameLogic.on('game:stateChange', (event) => {
+                log(`🎮 Game State: ${event.changeType} changed from ${event.oldValue} to ${event.newValue}`, 'success');
+                gameEventCount++;
+                updateEventCounts();
+            });
+
+            log('✅ EventEmitter integration test initialized successfully!', 'success');
+        }
+
+        // Test functions
+        window.testRuleCreation = () => {
+            const rule1 = ruleEngine.addRule('BLOCK', 'SOLID');
+            const rule2 = ruleEngine.addRule('I', 'FAST');
+            log(`Created rules: ${rule1}, ${rule2}`);
+        };
+
+        window.testRuleModification = () => {
+            const rules = ruleEngine.getActiveRules();
+            if (rules.length > 0) {
+                const rule = rules[0];
+                ruleEngine.modifyRuleProperty(rule.id, 'GHOST');
+                log(`Modified rule ${rule.id}`);
+            } else {
+                // Create a rule first
+                const ruleId = ruleEngine.addRule('TEST', 'OLD');
+                ruleEngine.modifyRuleProperty(ruleId, 'NEW');
+            }
+        };
+
+        window.testRuleConflict = () => {
+            // Create conflicting rules to trigger conflict resolution
+            ruleEngine.addRuleWithPriority('CONFLICT', 'SOLID', 100, 'line-clear');
+            ruleEngine.addRuleWithPriority('CONFLICT', 'GHOST', 200, 'line-clear'); // Higher priority
+            log('Created conflicting rules to test conflict resolution');
+        };
+
+        window.testLineClear = () => {
+            // Simulate line clear event
+            const oldScore = gameState.score;
+            const oldLevel = gameState.level;
+            
+            gameState.linesCleared += 2;
+            gameState.score += 300;
+            
+            gameLogic.getEventEmitter().emit('game:lineClear', {
+                timestamp: Date.now(),
+                source: 'Test',
+                linesCleared: 2,
+                lineNumbers: [18, 19],
+                score: 300,
+                level: gameState.level,
+                totalLinesCleared: gameState.linesCleared
+            });
+        };
+
+        window.testSpellEffect = () => {
+            gameLogic.getEventEmitter().emit('game:spellEffect', {
+                timestamp: Date.now(),
+                source: 'Test',
+                spellName: 'BOMB',
+                position: { x: 5, y: 10 },
+                intensity: 1.5,
+                affectedBlocks: [
+                    { x: 4, y: 10, type: 'I' },
+                    { x: 5, y: 10, type: 'O' },
+                    { x: 6, y: 10, type: 'T' }
+                ],
+                isComboEffect: false
+            });
+        };
+
+        window.testBlockTransformation = () => {
+            gameLogic.getEventEmitter().emit('game:blockTransformation', {
+                timestamp: Date.now(),
+                source: 'Test',
+                transformationType: 'destruction',
+                position: { x: 3, y: 8 },
+                before: { type: 'L', color: { r: 255, g: 165, b: 0 } },
+                ruleCause: 'LIGHTNING'
+            });
+        };
+
+        window.testPieceMovement = () => {
+            gameLogic.getEventEmitter().emit('game:pieceMovement', {
+                timestamp: Date.now(),
+                source: 'Test',
+                pieceType: 'T',
+                movement: 'rotate',
+                position: { x: 4, y: 2 }
+            });
+        };
+
+        window.testAllEvents = async () => {
+            log('🚀 Running comprehensive EventEmitter test...', 'info');
+            
+            // Test all RuleEngine events
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testRuleCreation();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testRuleModification();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testRuleConflict();
+            
+            // Test all GameLogic events
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testLineClear();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testSpellEffect();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testBlockTransformation();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            testPieceMovement();
+            
+            log('✅ All EventEmitter tests completed!', 'success');
+        };
+
+        window.clearLog = () => {
+            eventLog = [];
+            document.getElementById('eventLog').textContent = '';
+            ruleEventCount = 0;
+            gameEventCount = 0;
+            updateEventCounts();
+            log('📋 Event log cleared', 'info');
+        };
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                initializeGame();
+            } catch (error) {
+                log(`❌ Initialization error: ${error.message}`, 'error');
+                console.error('Initialization error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { Rule, WordQueueItem, GameState, RuleConflict, EffectThrottle } from './
 import { RuleConflictResolver, EffectThrottleManager } from './RuleConflictResolver.js';
 import { GameConfig, DEFAULT_CONFIG } from './GameConfig.js';
 import type { GameLogger } from './GameLogger.js';
+import { EventEmitter, EventMap, RuleCreatedEvent, RuleModifiedEvent, RuleConflictEvent } from './EventEmitter.js';
 
 export class RuleEngine {
     private rules: Map<string, Rule> = new Map();
@@ -10,6 +11,7 @@ export class RuleEngine {
     private effectThrottles: Map<string, EffectThrottle> = new Map();
     private logger?: GameLogger;
     private config: GameConfig;
+    private eventEmitter: EventEmitter<EventMap>;
     
     // Rule priority levels
     private readonly PRIORITY_LEVELS = {
@@ -22,11 +24,43 @@ export class RuleEngine {
     constructor(logger?: GameLogger, config: GameConfig = DEFAULT_CONFIG) {
         this.logger = logger;
         this.config = config;
+        this.eventEmitter = new EventEmitter<EventMap>(false); // Debug mode off by default
         this.initializeBasicRules();
     }
     
     public setLogger(logger: GameLogger): void {
         this.logger = logger;
+    }
+    
+    /**
+     * Get the EventEmitter instance for external event subscription
+     */
+    public getEventEmitter(): EventEmitter<EventMap> {
+        return this.eventEmitter;
+    }
+    
+    /**
+     * Subscribe to rule engine events
+     */
+    public on<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this {
+        this.eventEmitter.on(event, listener);
+        return this;
+    }
+    
+    /**
+     * Subscribe to rule engine events (one-time)
+     */
+    public once<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this {
+        this.eventEmitter.once(event, listener);
+        return this;
+    }
+    
+    /**
+     * Unsubscribe from rule engine events
+     */
+    public off<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this {
+        this.eventEmitter.off(event, listener);
+        return this;
     }
     
     private initializeBasicRules(): void {
@@ -61,6 +95,19 @@ export class RuleEngine {
         
         this.logger?.logRuleChange('ADD', { noun, property }, { priority, source, ruleId: id });
         
+        // Emit rule created event
+        this.eventEmitter.emit('rule:created', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            rule: {
+                id,
+                noun: noun.toUpperCase(),
+                property: property.toUpperCase(),
+                priority,
+                source
+            }
+        });
+        
         return id;
     }
     
@@ -81,6 +128,18 @@ export class RuleEngine {
             ruleId 
         });
         
+        // Emit rule modified event
+        this.eventEmitter.emit('rule:modified', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            ruleId,
+            changes: {
+                oldValue: oldProperty,
+                newValue: newProperty.toUpperCase(),
+                field: 'property'
+            }
+        });
+        
         return true;
     }
     
@@ -99,6 +158,18 @@ export class RuleEngine {
         this.logger?.logRuleChange('MODIFY_NOUN', { noun: newNoun, property: rule.property }, { 
             oldNoun, 
             ruleId 
+        });
+        
+        // Emit rule modified event
+        this.eventEmitter.emit('rule:modified', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            ruleId,
+            changes: {
+                oldValue: oldNoun,
+                newValue: newNoun.toUpperCase(),
+                field: 'noun'
+            }
         });
         
         return true;
@@ -148,6 +219,25 @@ export class RuleEngine {
             conflict.conflictingRules,
             conflict.resolution
         );
+        
+        // Emit rule conflict event
+        this.eventEmitter.emit('rule:conflict', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            conflict: {
+                noun: conflict.noun,
+                conflictingRules: conflict.conflictingRules.map(rule => ({
+                    id: rule.id,
+                    property: rule.property,
+                    priority: rule.priority
+                })),
+                resolution: conflict.resolution,
+                resolvedRule: resolvedRule ? {
+                    id: resolvedRule.id,
+                    property: resolvedRule.property
+                } : undefined
+            }
+        });
         
         // Track the conflict for UI display
         this.ruleConflicts.push(conflict);

@@ -62,6 +62,69 @@ export class AudioSystem {
             type: 'sawtooth',
             envelope: { attack: 0.01, decay: 0.5, sustain: 0.3, release: 0.99 }
         },
+        lightning: {
+            name: 'LIGHTNING Strike',
+            frequency: 1200, // High crackle
+            duration: 0.8,
+            type: 'square',
+            envelope: { attack: 0.001, decay: 0.1, sustain: 0.2, release: 0.69 }
+        },
+        acid: {
+            name: 'ACID Dissolve',
+            frequency: 200, // Bubbling sound
+            duration: 1.2,
+            type: 'sawtooth',
+            envelope: { attack: 0.05, decay: 0.4, sustain: 0.6, release: 0.75 }
+        },
+        heal: {
+            name: 'HEAL Restoration',
+            frequency: 523, // C5 - peaceful
+            duration: 0.6,
+            type: 'sine',
+            envelope: { attack: 0.03, decay: 0.2, sustain: 0.8, release: 0.37 }
+        },
+        teleport: {
+            name: 'TELEPORT Warp',
+            frequency: 880, // A5 - rising
+            duration: 0.4,
+            type: 'triangle',
+            envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 0.28 }
+        },
+        multiply: {
+            name: 'MULTIPLY Clone',
+            frequency: 392, // G4 - doubling
+            duration: 0.5,
+            type: 'square',
+            envelope: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.34 }
+        },
+        magnet: {
+            name: 'MAGNET Pull',
+            frequency: 110, // Low magnetic hum
+            duration: 0.8,
+            type: 'triangle',
+            envelope: { attack: 0.1, decay: 0.2, sustain: 0.7, release: 0.5 }
+        },
+        transform: {
+            name: 'TRANSFORM Morph',
+            frequency: 659, // E5 - changing
+            duration: 0.7,
+            type: 'triangle',
+            envelope: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 0.35 }
+        },
+        sink: {
+            name: 'SINK Falling',
+            frequency: 294, // D4 - descending
+            duration: 0.9,
+            type: 'sine',
+            envelope: { attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.58 }
+        },
+        float: {
+            name: 'FLOAT Rising',
+            frequency: 784, // G5 - ascending
+            duration: 0.8,
+            type: 'sine',
+            envelope: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.58 }
+        },
         ruleFormation: {
             name: 'Rule Formation',
             frequency: 659, // E5
@@ -416,5 +479,110 @@ export class AudioSystem {
      */
     public getSoundEffects(): string[] {
         return Object.keys(this.soundEffects);
+    }
+    
+    /**
+     * Subscribe to EventEmitter events for reactive audio
+     * This demonstrates the integration points mentioned in TASK-0063
+     */
+    public subscribeToGameEvents(ruleEngine: any, gameLogic: any): void {
+        if (!ruleEngine?.getEventEmitter || !gameLogic?.getEventEmitter) {
+            console.warn('AudioSystem: EventEmitter not available on RuleEngine or GameLogic');
+            return;
+        }
+        
+        // Subscribe to rule events
+        ruleEngine.on('rule:created', (event: any) => {
+            console.log(`🎵 Audio responding to rule creation: [${event.rule.noun}] IS [${event.rule.property}]`);
+            this.playSoundEffect('ruleFormation');
+        });
+        
+        ruleEngine.on('rule:conflict', (event: any) => {
+            console.log(`🎵 Audio responding to rule conflict: ${event.conflict.resolution}`);
+            this.playSoundEffect('ruleTweak'); // Play conflict resolution sound
+        });
+        
+        // Subscribe to gameplay events
+        gameLogic.on('game:lineClear', (event: any) => {
+            console.log(`🎵 Audio responding to line clear: ${event.linesCleared} lines`);
+            // Play different sounds based on line count
+            if (event.linesCleared >= 4) {
+                this.playSoundEffect('tetris'); // Special tetris sound
+            } else {
+                this.playSoundEffect('lineClear');
+            }
+        });
+        
+        gameLogic.on('game:spellEffect', (event: any) => {
+            console.log(`🎵 Audio responding to spell effect: ${event.spellName} at intensity ${event.intensity}`);
+            // Play spell-specific sounds
+            const spellSounds: { [key: string]: string } = {
+                'BOMB': 'bombExplosion',
+                'LIGHTNING': 'lightning',
+                'ACID': 'acid',
+                'MULTIPLY': 'multiply',
+                'TELEPORT': 'teleport',
+                'MAGNET': 'magnet',
+                'TRANSFORM': 'transform',
+                'HEAL': 'heal',
+                'SINK': 'sink',
+                'FLOAT': 'float'
+            };
+            
+            const soundEffect = spellSounds[event.spellName] || 'spellCast';
+            this.playSoundEffect(soundEffect);
+            
+            // Play combo sound for combo effects
+            if (event.isComboEffect) {
+                setTimeout(() => this.playSoundEffect('comboEffect'), 200);
+            }
+        });
+        
+        gameLogic.on('game:blockTransformation', (event: any) => {
+            console.log(`🎵 Audio responding to block transformation: ${event.transformationType}`);
+            // Play transformation sounds based on type
+            switch (event.transformationType) {
+                case 'destruction':
+                    this.playSoundEffect('blockDestroy');
+                    break;
+                case 'creation':
+                    this.playSoundEffect('blockCreate');
+                    break;
+                case 'type':
+                case 'color':
+                    this.playSoundEffect('blockTransform');
+                    break;
+            }
+        });
+        
+        gameLogic.on('game:pieceMovement', (event: any) => {
+            // Only play sounds for significant movements (not every drop)
+            if (event.movement === 'place') {
+                this.playSoundEffect('pieceDrop');
+            } else if (event.movement === 'rotate') {
+                this.playSoundEffect('pieceRotate');
+            }
+            // Suppress left/right/drop movement sounds to avoid spam
+        });
+        
+        gameLogic.on('game:stateChange', (event: any) => {
+            console.log(`🎵 Audio responding to game state change: ${event.changeType}`);
+            switch (event.changeType) {
+                case 'level':
+                    this.playSoundEffect('levelUp');
+                    break;
+                case 'gameOver':
+                    if (event.newValue) {
+                        this.playSoundEffect('gameOver');
+                        this.stopMusic(); // Stop background music on game over
+                    }
+                    break;
+                case 'pause':
+                    // Could pause/resume music based on pause state
+                    break;
+            }
+        });
+        
+        console.log('🎵 AudioSystem successfully subscribed to EventEmitter events');
     }
 }
