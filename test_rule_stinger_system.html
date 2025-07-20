@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RuleStingerSystem Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        .container {
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        .stinger-category {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #3d3d3d;
+            border-radius: 5px;
+        }
+        
+        .stinger-category h3 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="range"] {
+            width: 150px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #444;
+        }
+        
+        .fusion-test {
+            background-color: #4a2c4a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 RuleStingerSystem Test</h1>
+    
+    <div class="container">
+        <h2>Audio Controls</h2>
+        <div class="controls">
+            <button id="initBtn">Initialize Audio</button>
+            <label for="volumeSlider">Volume:</label>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.4">
+            <span id="volumeDisplay">0.4</span>
+            <button id="resumeBtn">Resume Audio Context</button>
+        </div>
+        <div class="status" id="status">Click "Initialize Audio" to start</div>
+    </div>
+
+    <div class="container">
+        <h2>Rule Type Stingers</h2>
+        
+        <div class="stinger-category">
+            <h3>Core Rule Types</h3>
+            <button class="stinger-btn" data-rule="YOU">YOU (Heroic)</button>
+            <button class="stinger-btn" data-rule="WIN">WIN (Triumphant)</button>
+            <button class="stinger-btn" data-rule="DEFEAT">DEFEAT (Ominous)</button>
+            <button class="stinger-btn" data-rule="LOSE">LOSE (Ominous)</button>
+        </div>
+
+        <div class="stinger-category">
+            <h3>Spell Properties</h3>
+            <button class="stinger-btn" data-rule="BOMB">BOMB (Explosive)</button>
+            <button class="stinger-btn" data-rule="LIGHTNING">LIGHTNING (Electric Crack)</button>
+            <button class="stinger-btn" data-rule="HEAL">HEAL (Restorative)</button>
+            <button class="stinger-btn" data-rule="TELEPORT">TELEPORT (Dimensional)</button>
+            <button class="stinger-btn" data-rule="MULTIPLY">MULTIPLY (Echo)</button>
+        </div>
+
+        <div class="stinger-category">
+            <h3>Time Properties</h3>
+            <button class="stinger-btn" data-rule="SLOW">SLOW (Descending)</button>
+            <button class="stinger-btn" data-rule="FAST">FAST (Ascending)</button>
+            <button class="stinger-btn" data-rule="FREEZE">FREEZE (Dissonant)</button>
+        </div>
+
+        <div class="fusion-test">
+            <h3>Fusion Rule Testing</h3>
+            <p>Test combinations of multiple rule themes:</p>
+            <button class="fusion-btn" data-rules="YOU,WIN">YOU + WIN (Heroic Victory)</button>
+            <button class="fusion-btn" data-rules="BOMB,LIGHTNING">BOMB + LIGHTNING (Chaos)</button>
+            <button class="fusion-btn" data-rules="HEAL,SLOW">HEAL + SLOW (Gentle Recovery)</button>
+            <button class="fusion-btn" data-rules="FAST,MULTIPLY">FAST + MULTIPLY (Rapid Duplication)</button>
+            <button class="fusion-btn" data-rules="DEFEAT,FREEZE">DEFEAT + FREEZE (Frozen Doom)</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Event Simulation</h2>
+        <p>Simulate rule engine events:</p>
+        <button id="ruleCreatedBtn">Simulate Rule Created</button>
+        <button id="ruleModifiedBtn">Simulate Rule Modified</button>
+        <button id="ruleConflictBtn">Simulate Rule Conflict</button>
+    </div>
+
+    <div class="container">
+        <h2>System Information</h2>
+        <div id="systemInfo">
+            <p><strong>Available Stingers:</strong> <span id="availableStingers">Not initialized</span></p>
+            <p><strong>Current Config:</strong> <span id="currentConfig">Not initialized</span></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { RuleStingerSystem } from './dist/audio/RuleStingerSystem.js';
+        
+        let stingerSystem = null;
+        let mockRuleEngine = null;
+
+        // Mock rule engine for testing event subscription
+        class MockRuleEngine {
+            constructor() {
+                this.listeners = new Map();
+            }
+
+            on(event, callback) {
+                if (!this.listeners.has(event)) {
+                    this.listeners.set(event, []);
+                }
+                this.listeners.get(event).push(callback);
+            }
+
+            emit(event, data) {
+                if (this.listeners.has(event)) {
+                    this.listeners.get(event).forEach(callback => callback(data));
+                }
+            }
+        }
+
+        // Initialize system
+        document.getElementById('initBtn').addEventListener('click', async () => {
+            try {
+                stingerSystem = new RuleStingerSystem({
+                    volume: 0.4,
+                    duration: 1.5,
+                    enabled: true
+                });
+
+                await stingerSystem.initialize();
+                
+                // Create mock rule engine and subscribe
+                mockRuleEngine = new MockRuleEngine();
+                stingerSystem.subscribeToRuleEvents(mockRuleEngine);
+
+                document.getElementById('status').textContent = 'RuleStingerSystem initialized successfully!';
+                document.getElementById('status').style.backgroundColor = '#2d5a2d';
+                
+                // Enable all buttons
+                document.querySelectorAll('button').forEach(btn => {
+                    if (btn.id !== 'initBtn') btn.disabled = false;
+                });
+
+                // Update system info
+                updateSystemInfo();
+                
+            } catch (error) {
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+                document.getElementById('status').style.backgroundColor = '#5a2d2d';
+            }
+        });
+
+        // Volume control
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeDisplay = document.getElementById('volumeDisplay');
+        
+        volumeSlider.addEventListener('input', (e) => {
+            const volume = parseFloat(e.target.value);
+            volumeDisplay.textContent = volume.toFixed(1);
+            
+            if (stingerSystem) {
+                stingerSystem.updateConfig({ volume });
+                updateSystemInfo();
+            }
+        });
+
+        // Resume audio context
+        document.getElementById('resumeBtn').addEventListener('click', async () => {
+            if (stingerSystem) {
+                await stingerSystem.resumeContext();
+                document.getElementById('status').textContent = 'Audio context resumed';
+            }
+        });
+
+        // Single stinger buttons
+        document.querySelectorAll('.stinger-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.addEventListener('click', async () => {
+                const ruleType = btn.dataset.rule;
+                if (stingerSystem) {
+                    await stingerSystem.playStinger(ruleType, 1.0);
+                    document.getElementById('status').textContent = `Playing ${ruleType} stinger`;
+                }
+            });
+        });
+
+        // Fusion stinger buttons
+        document.querySelectorAll('.fusion-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.addEventListener('click', async () => {
+                const ruleTypes = btn.dataset.rules.split(',');
+                if (stingerSystem) {
+                    await stingerSystem.playFusionStinger(ruleTypes, 0.8);
+                    document.getElementById('status').textContent = `Playing fusion stinger: ${ruleTypes.join(' + ')}`;
+                }
+            });
+        });
+
+        // Event simulation
+        document.getElementById('ruleCreatedBtn').addEventListener('click', () => {
+            if (mockRuleEngine) {
+                const testRule = {
+                    rule: {
+                        id: 'test-1',
+                        noun: 'BLOCK',
+                        property: 'BOMB',
+                        priority: 100,
+                        source: 'line-clear'
+                    },
+                    timestamp: Date.now(),
+                    source: 'test'
+                };
+                mockRuleEngine.emit('rule:created', testRule);
+                document.getElementById('status').textContent = 'Simulated rule created: [BLOCK] IS [BOMB]';
+            }
+        });
+
+        document.getElementById('ruleModifiedBtn').addEventListener('click', () => {
+            if (mockRuleEngine) {
+                const testModification = {
+                    ruleId: 'test-1',
+                    changes: {
+                        oldValue: 'BOMB',
+                        newValue: 'HEAL',
+                        field: 'property'
+                    },
+                    timestamp: Date.now(),
+                    source: 'test'
+                };
+                mockRuleEngine.emit('rule:modified', testModification);
+                document.getElementById('status').textContent = 'Simulated rule modified: BOMB → HEAL';
+            }
+        });
+
+        document.getElementById('ruleConflictBtn').addEventListener('click', () => {
+            if (mockRuleEngine) {
+                const testConflict = {
+                    conflict: {
+                        noun: 'BLOCK',
+                        conflictingRules: [
+                            { id: 'rule-1', property: 'WIN', priority: 100 },
+                            { id: 'rule-2', property: 'LOSE', priority: 90 }
+                        ],
+                        resolution: 'fusion',
+                        resolvedRule: { id: 'fusion-1', property: 'FUSION_WIN_LOSE' }
+                    },
+                    timestamp: Date.now(),
+                    source: 'test'
+                };
+                mockRuleEngine.emit('rule:conflict', testConflict);
+                document.getElementById('status').textContent = 'Simulated rule conflict: WIN vs LOSE → Fusion';
+            }
+        });
+
+        // Disable all action buttons initially
+        document.querySelectorAll('button').forEach(btn => {
+            if (btn.id !== 'initBtn') btn.disabled = true;
+        });
+
+        function updateSystemInfo() {
+            if (stingerSystem) {
+                const availableStingers = stingerSystem.getAvailableStingers();
+                const config = stingerSystem.getConfig();
+                
+                document.getElementById('availableStingers').textContent = availableStingers.join(', ');
+                document.getElementById('currentConfig').textContent = JSON.stringify(config, null, 2);
+            }
+        }
+
+        // Instructions
+        console.log('🎵 RuleStingerSystem Test Instructions:');
+        console.log('1. Click "Initialize Audio" to start the system');
+        console.log('2. Adjust volume with the slider');
+        console.log('3. Click individual stinger buttons to test different rule themes');
+        console.log('4. Try fusion combinations for layered effects');
+        console.log('5. Use event simulation buttons to test rule engine integration');
+    </script>
+</body>
+</html>
