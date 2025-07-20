@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempoController Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .control-panel {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 200px;
+            margin: 0 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .status {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+        .status-value {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .log {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-tempo { color: #4CAF50; }
+        .log-event { color: #FFA500; }
+        .log-error { color: #FF6B6B; }
+    </style>
+</head>
+<body>
+    <h1>🎵 TempoController Test</h1>
+    
+    <div class="control-panel">
+        <h3>Tempo Controls</h3>
+        
+        <div class="control-group">
+            <label>Speed Multiplier:</label>
+            <input type="range" id="speedSlider" min="1" max="5" step="0.1" value="1">
+            <span id="speedValue">1.0x</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Scaling Curve:</label>
+            <select id="curveSelect">
+                <option value="linear">Linear</option>
+                <option value="exponential">Exponential</option>
+                <option value="logarithmic">Logarithmic</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Transition Duration:</label>
+            <input type="range" id="durationSlider" min="0.5" max="5" step="0.1" value="2">
+            <span id="durationValue">2.0s</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Responsiveness:</label>
+            <input type="range" id="responsivenessSlider" min="0.1" max="1" step="0.1" value="0.8">
+            <span id="responsivenessValue">0.8</span>
+        </div>
+        
+        <div class="control-group">
+            <button onclick="resetTempo()">Reset</button>
+            <button onclick="testPresets()">Test Presets</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+    
+    <div class="status">
+        <h3>Current Status</h3>
+        <div>Current BPM: <span class="status-value" id="currentBPM">60.0</span></div>
+        <div>Target BPM: <span class="status-value" id="targetBPM">60.0</span></div>
+        <div>Speed Multiplier: <span class="status-value" id="currentSpeed">1.0x</span></div>
+        <div>Transitioning: <span class="status-value" id="transitioning">No</span></div>
+        <div>Progress: <span class="status-value" id="progress">100%</span></div>
+        <div>Beat Interval: <span class="status-value" id="beatInterval">1.000s</span></div>
+    </div>
+    
+    <div class="log" id="logContainer">
+        <div class="log-entry log-tempo">TempoController test initialized</div>
+    </div>
+
+    <script type="module">
+        import { TempoController } from './dist/audio/TempoController.js';
+        
+        let tempoController;
+        let updateInterval;
+        let audioContext;
+        
+        // Initialize TempoController
+        async function initializeTempo() {
+            try {
+                // Create AudioContext
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Initialize TempoController
+                tempoController = new TempoController(audioContext, {
+                    minBPM: 60,
+                    maxBPM: 180,
+                    transitionDuration: 2.0,
+                    scalingCurve: 'linear',
+                    responsiveness: 0.8
+                });
+                
+                // Listen for tempo change events
+                window.addEventListener('tempoChange', (event) => {
+                    const detail = event.detail;
+                    logMessage(`Tempo Event: ${detail.oldBPM.toFixed(1)} → ${detail.newBPM.toFixed(1)} BPM (${detail.curve})`, 'event');
+                });
+                
+                // Start status updates
+                updateInterval = setInterval(updateStatus, 100);
+                
+                logMessage('TempoController initialized with Web Audio support', 'tempo');
+                
+            } catch (error) {
+                logMessage(`Failed to initialize: ${error.message}`, 'error');
+                console.error('Initialization error:', error);
+            }
+        }
+        
+        // Update status display
+        function updateStatus() {
+            if (!tempoController) return;
+            
+            const state = tempoController.getState();
+            
+            document.getElementById('currentBPM').textContent = state.currentBPM.toFixed(1);
+            document.getElementById('targetBPM').textContent = state.targetBPM.toFixed(1);
+            document.getElementById('currentSpeed').textContent = state.speedMultiplier.toFixed(1) + 'x';
+            document.getElementById('transitioning').textContent = state.isTransitioning ? 'Yes' : 'No';
+            document.getElementById('progress').textContent = (state.transitionProgress * 100).toFixed(0) + '%';
+            document.getElementById('beatInterval').textContent = tempoController.getBeatInterval().toFixed(3) + 's';
+        }
+        
+        // Log message to console
+        function logMessage(message, type = 'tempo') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Event handlers
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            const speed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = speed.toFixed(1) + 'x';
+            
+            if (tempoController) {
+                tempoController.setTempo(speed);
+                logMessage(`Speed set to ${speed.toFixed(1)}x`, 'tempo');
+            }
+        });
+        
+        document.getElementById('curveSelect').addEventListener('change', (e) => {
+            const curve = e.target.value;
+            if (tempoController) {
+                tempoController.updateConfig({ scalingCurve: curve });
+                logMessage(`Scaling curve changed to ${curve}`, 'tempo');
+            }
+        });
+        
+        document.getElementById('durationSlider').addEventListener('input', (e) => {
+            const duration = parseFloat(e.target.value);
+            document.getElementById('durationValue').textContent = duration.toFixed(1) + 's';
+            
+            if (tempoController) {
+                tempoController.updateConfig({ transitionDuration: duration });
+                logMessage(`Transition duration set to ${duration.toFixed(1)}s`, 'tempo');
+            }
+        });
+        
+        document.getElementById('responsivenessSlider').addEventListener('input', (e) => {
+            const responsiveness = parseFloat(e.target.value);
+            document.getElementById('responsivenessValue').textContent = responsiveness.toFixed(1);
+            
+            if (tempoController) {
+                tempoController.updateConfig({ responsiveness: responsiveness });
+                logMessage(`Responsiveness set to ${responsiveness.toFixed(1)}`, 'tempo');
+            }
+        });
+        
+        // Global functions
+        window.resetTempo = () => {
+            if (tempoController) {
+                tempoController.reset();
+                document.getElementById('speedSlider').value = 1;
+                document.getElementById('speedValue').textContent = '1.0x';
+                logMessage('TempoController reset', 'tempo');
+            }
+        };
+        
+        window.testPresets = async () => {
+            if (!tempoController) return;
+            
+            logMessage('Starting preset test sequence...', 'event');
+            
+            const presets = [
+                { speed: 1.5, name: 'Beginner' },
+                { speed: 2.5, name: 'Intermediate' }, 
+                { speed: 4.0, name: 'Advanced' },
+                { speed: 5.0, name: 'Expert' }
+            ];
+            
+            for (let i = 0; i < presets.length; i++) {
+                const preset = presets[i];
+                tempoController.setTempo(preset.speed);
+                document.getElementById('speedSlider').value = preset.speed;
+                document.getElementById('speedValue').textContent = preset.speed.toFixed(1) + 'x';
+                
+                logMessage(`Testing ${preset.name} preset (${preset.speed}x)`, 'event');
+                
+                // Wait for transition to complete
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+            
+            logMessage('Preset test sequence completed', 'event');
+        };
+        
+        window.clearLog = () => {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '<div class="log-entry log-tempo">Log cleared</div>';
+        };
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add click handler to resume AudioContext (required by browsers)
+            document.body.addEventListener('click', async () => {
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    logMessage('AudioContext resumed', 'tempo');
+                }
+            }, { once: true });
+            
+            initializeTempo();
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            if (tempoController) {
+                tempoController.dispose();
+            }
+        });
+    </script>
+</body>
+</html>

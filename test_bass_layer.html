@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BassLayer Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .control-panel {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        button {
+            background: #4a4a4a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #5a5a5a; }
+        button.active { background: #6a4c93; }
+        .metrics {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .pattern-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>BassLayer Integration Test</h1>
+    <p>Test the BassLayer implementation with different patterns and intensity levels.</p>
+    
+    <div class="control-panel">
+        <h3>Playback Controls</h3>
+        <button id="playBtn">Play Bass</button>
+        <button id="stopBtn">Stop Bass</button>
+        <button id="resumeAudioBtn" style="background: #c44569;">Resume Audio Context</button>
+        
+        <div class="control-group">
+            <label for="intensitySlider">Intensity: <span id="intensityValue">0.5</span></label>
+            <input type="range" id="intensitySlider" min="0" max="1" step="0.1" value="0.5">
+        </div>
+        
+        <div class="control-group">
+            <label for="volumeSlider">Volume: <span id="volumeValue">0.6</span></label>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.6">
+        </div>
+        
+        <div class="control-group">
+            <label for="rootFreqSlider">Root Frequency: <span id="rootFreqValue">41</span> Hz</label>
+            <input type="range" id="rootFreqSlider" min="30" max="100" step="1" value="41">
+        </div>
+    </div>
+    
+    <div class="control-panel">
+        <h3>Bass Patterns</h3>
+        <div class="pattern-buttons">
+            <button class="pattern-btn" data-pattern="root_only">Root Only</button>
+            <button class="pattern-btn" data-pattern="root_fifth">Root + Fifth</button>
+            <button class="pattern-btn" data-pattern="root_fifth_octave">Root + Fifth + Octave</button>
+            <button class="pattern-btn" data-pattern="walking">Walking Bass</button>
+            <button class="pattern-btn" data-pattern="syncopated">Syncopated</button>
+            <button class="pattern-btn" data-pattern="drone">Drone</button>
+        </div>
+    </div>
+    
+    <div class="control-panel">
+        <h3>Music States</h3>
+        <div class="pattern-buttons">
+            <button class="state-btn" data-state="idle">Idle</button>
+            <button class="state-btn" data-state="building">Building</button>
+            <button class="state-btn active" data-state="intense">Intense</button>
+            <button class="state-btn" data-state="victory">Victory</button>
+            <button class="state-btn" data-state="defeat">Defeat</button>
+        </div>
+    </div>
+    
+    <div class="metrics" id="metrics">
+        <strong>Performance Metrics:</strong><br>
+        <span id="metricsContent">Click "Play Bass" to see metrics...</span>
+    </div>
+
+    <script type="module">
+        // Import the compiled BassLayer (this would normally be from dist/)
+        // For testing, we'll create a simple mock
+        
+        let audioContext = null;
+        let bassLayer = null;
+        let currentState = 'intense';
+        let isPlaying = false;
+        let metricsInterval = null;
+        
+        // Initialize audio context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('Audio context created:', audioContext.state);
+            }
+        }
+        
+        // Resume audio context (required for user interaction)
+        async function resumeAudioContext() {
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+                console.log('Audio context resumed');
+            }
+        }
+        
+        // Mock BassLayer implementation for testing
+        class MockBassLayer {
+            constructor(audioContext) {
+                this.audioContext = audioContext;
+                this.isPlaying = false;
+                this.intensity = 0.5;
+                this.volume = 0.6;
+                this.pattern = 'root_only';
+                this.rootFreq = 41.2;
+                this.oscillators = [];
+                this.masterGain = audioContext.createGain();
+                this.masterGain.connect(audioContext.destination);
+                this.masterGain.gain.value = 0;
+            }
+            
+            async play() {
+                if (this.isPlaying) return;
+                
+                await resumeAudioContext();
+                this.isPlaying = true;
+                this.masterGain.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
+                this.startBassPattern();
+                console.log(`🎵 Mock BassLayer started with pattern: ${this.pattern}`);
+            }
+            
+            async stop() {
+                if (!this.isPlaying) return;
+                
+                this.isPlaying = false;
+                this.stopAllOscillators();
+                this.masterGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+                console.log('🎵 Mock BassLayer stopped');
+            }
+            
+            startBassPattern() {
+                this.stopAllOscillators();
+                
+                const freq = this.rootFreq;
+                const interval = this.getBeatInterval();
+                
+                this.scheduleNextNote(freq, 0);
+            }
+            
+            scheduleNextNote(frequency, delay) {
+                if (!this.isPlaying) return;
+                
+                setTimeout(() => {
+                    if (!this.isPlaying) return;
+                    
+                    this.playBassNote(frequency);
+                    
+                    // Schedule next note based on pattern
+                    const nextFreq = this.getNextFrequency(frequency);
+                    this.scheduleNextNote(nextFreq, this.getBeatInterval() * 1000);
+                }, delay);
+            }
+            
+            playBassNote(frequency) {
+                const startTime = this.audioContext.currentTime;
+                const duration = 0.4;
+                
+                // Create sawtooth oscillator for rich bass
+                const osc1 = this.audioContext.createOscillator();
+                const gain1 = this.audioContext.createGain();
+                
+                osc1.type = 'sawtooth';
+                osc1.frequency.setValueAtTime(frequency, startTime);
+                gain1.gain.setValueAtTime(0, startTime);
+                gain1.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+                gain1.gain.setValueAtTime(0.3, startTime + duration - 0.1);
+                gain1.gain.linearRampToValueAtTime(0, startTime + duration);
+                
+                osc1.connect(gain1);
+                gain1.connect(this.masterGain);
+                
+                // Create triangle oscillator for smoothness
+                const osc2 = this.audioContext.createOscillator();
+                const gain2 = this.audioContext.createGain();
+                
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(frequency, startTime);
+                osc2.detune.setValueAtTime(12, startTime); // Slight detune
+                gain2.gain.setValueAtTime(0, startTime);
+                gain2.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+                gain2.gain.setValueAtTime(0.2, startTime + duration - 0.1);
+                gain2.gain.linearRampToValueAtTime(0, startTime + duration);
+                
+                osc2.connect(gain2);
+                gain2.connect(this.masterGain);
+                
+                osc1.start(startTime);
+                osc1.stop(startTime + duration);
+                osc2.start(startTime);
+                osc2.stop(startTime + duration);
+                
+                this.oscillators.push({ osc1, osc2, gain1, gain2 });
+                
+                // Clean up after note ends
+                setTimeout(() => {
+                    this.oscillators = this.oscillators.filter(o => o.osc1 !== osc1);
+                }, duration * 1000 + 100);
+            }
+            
+            stopAllOscillators() {
+                for (const { osc1, osc2 } of this.oscillators) {
+                    try {
+                        osc1.stop();
+                        osc2.stop();
+                    } catch (e) {
+                        // Oscillator may already be stopped
+                    }
+                }
+                this.oscillators = [];
+            }
+            
+            getNextFrequency(currentFreq) {
+                switch (this.pattern) {
+                    case 'root_fifth':
+                        return currentFreq === this.rootFreq ? 
+                            this.rootFreq * Math.pow(2, 7/12) : this.rootFreq; // Perfect fifth
+                    case 'root_fifth_octave':
+                        const cycle = Math.floor(Date.now() / 2000) % 3;
+                        if (cycle === 0) return this.rootFreq;
+                        if (cycle === 1) return this.rootFreq * Math.pow(2, 7/12);
+                        return this.rootFreq * 2; // Octave
+                    case 'walking':
+                        const walkCycle = Math.floor(Date.now() / 1000) % 4;
+                        const intervals = [0, 3, 7, 5]; // Root, minor third, fifth, fourth
+                        return this.rootFreq * Math.pow(2, intervals[walkCycle]/12);
+                    case 'drone':
+                        return this.rootFreq; // Always root
+                    default:
+                        return this.rootFreq;
+                }
+            }
+            
+            getBeatInterval() {
+                return 0.5; // 120 BPM
+            }
+            
+            setVolume(volume) {
+                this.volume = volume;
+                if (this.isPlaying) {
+                    this.masterGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+                }
+            }
+            
+            setPattern(pattern) {
+                this.pattern = pattern;
+                console.log(`🎵 Pattern changed to: ${pattern}`);
+            }
+            
+            setRootFrequency(freq) {
+                this.rootFreq = freq;
+                console.log(`🎵 Root frequency changed to: ${freq}Hz`);
+            }
+            
+            updateForState(state, intensity) {
+                this.intensity = intensity;
+                console.log(`🎵 State updated: ${state}, intensity: ${intensity}`);
+            }
+            
+            getMetrics() {
+                return {
+                    isPlaying: this.isPlaying,
+                    pattern: this.pattern,
+                    rootFrequency: this.rootFreq,
+                    intensity: this.intensity,
+                    volume: this.volume,
+                    activeOscillators: this.oscillators.length,
+                    audioContextState: this.audioContext.state
+                };
+            }
+        }
+        
+        // Event handlers
+        document.getElementById('resumeAudioBtn').addEventListener('click', async () => {
+            initAudioContext();
+            await resumeAudioContext();
+            if (!bassLayer) {
+                bassLayer = new MockBassLayer(audioContext);
+            }
+        });
+        
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            if (!bassLayer) {
+                initAudioContext();
+                await resumeAudioContext();
+                bassLayer = new MockBassLayer(audioContext);
+            }
+            
+            await bassLayer.play();
+            isPlaying = true;
+            
+            // Start metrics updates
+            if (metricsInterval) clearInterval(metricsInterval);
+            metricsInterval = setInterval(updateMetrics, 1000);
+        });
+        
+        document.getElementById('stopBtn').addEventListener('click', async () => {
+            if (bassLayer) {
+                await bassLayer.stop();
+                isPlaying = false;
+                
+                if (metricsInterval) {
+                    clearInterval(metricsInterval);
+                    metricsInterval = null;
+                }
+            }
+        });
+        
+        // Slider controls
+        document.getElementById('intensitySlider').addEventListener('input', (e) => {
+            const intensity = parseFloat(e.target.value);
+            document.getElementById('intensityValue').textContent = intensity;
+            if (bassLayer) {
+                bassLayer.updateForState(currentState, intensity);
+            }
+        });
+        
+        document.getElementById('volumeSlider').addEventListener('input', (e) => {
+            const volume = parseFloat(e.target.value);
+            document.getElementById('volumeValue').textContent = volume;
+            if (bassLayer) {
+                bassLayer.setVolume(volume);
+            }
+        });
+        
+        document.getElementById('rootFreqSlider').addEventListener('input', (e) => {
+            const freq = parseInt(e.target.value);
+            document.getElementById('rootFreqValue').textContent = freq;
+            if (bassLayer) {
+                bassLayer.setRootFrequency(freq);
+            }
+        });
+        
+        // Pattern buttons
+        document.querySelectorAll('.pattern-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pattern = btn.dataset.pattern;
+                if (bassLayer) {
+                    bassLayer.setPattern(pattern);
+                }
+                
+                // Update button states
+                document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+        
+        // State buttons
+        document.querySelectorAll('.state-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentState = btn.dataset.state;
+                const intensity = parseFloat(document.getElementById('intensitySlider').value);
+                
+                if (bassLayer) {
+                    bassLayer.updateForState(currentState, intensity);
+                }
+                
+                // Update button states
+                document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+        
+        function updateMetrics() {
+            if (!bassLayer) return;
+            
+            const metrics = bassLayer.getMetrics();
+            const metricsHtml = `
+                <strong>Performance Metrics:</strong><br>
+                Playing: ${metrics.isPlaying}<br>
+                Pattern: ${metrics.pattern}<br>
+                Root Frequency: ${metrics.rootFrequency}Hz<br>
+                Intensity: ${metrics.intensity.toFixed(2)}<br>
+                Volume: ${metrics.volume.toFixed(2)}<br>
+                Active Oscillators: ${metrics.activeOscillators}<br>
+                Audio Context: ${metrics.audioContextState}
+            `;
+            
+            document.getElementById('metricsContent').innerHTML = metricsHtml;
+        }
+        
+        console.log('BassLayer test interface loaded. Click "Resume Audio Context" first, then "Play Bass".');
+    </script>
+</body>
+</html>

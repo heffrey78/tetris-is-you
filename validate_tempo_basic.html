@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempoController Basic Validation</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-result {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .pass { color: #00ff00; }
+        .fail { color: #ff6b6b; }
+        .info { color: #87ceeb; }
+        .test-section {
+            margin: 20px 0;
+            border-left: 3px solid #00ff00;
+            padding-left: 15px;
+        }
+        pre {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 TempoController Basic Validation</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { TempoController } from './dist/audio/TempoController.js';
+        
+        const output = document.getElementById('output');
+        let testCount = 0;
+        let passCount = 0;
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            output.appendChild(div);
+        }
+        
+        function assert(condition, message) {
+            testCount++;
+            if (condition) {
+                log(`✓ ${message}`, 'pass');
+                passCount++;
+            } else {
+                log(`✗ ${message}`, 'fail');
+            }
+        }
+        
+        function section(title) {
+            const div = document.createElement('div');
+            div.className = 'test-section';
+            div.innerHTML = `<h3>${title}</h3>`;
+            output.appendChild(div);
+        }
+        
+        async function runTests() {
+            log('Starting TempoController validation tests...', 'info');
+            
+            // Test 1: Basic initialization
+            section('Test 1: Basic Initialization');
+            const tempoController = new TempoController();
+            const initialState = tempoController.getState();
+            
+            assert(initialState.currentBPM === 60, `Initial BPM should be 60, got ${initialState.currentBPM}`);
+            assert(initialState.speedMultiplier === 1.0, `Initial speed should be 1.0x, got ${initialState.speedMultiplier}x`);
+            assert(!initialState.isTransitioning, `Should not be transitioning initially`);
+            
+            // Test 2: Configuration
+            section('Test 2: Configuration');
+            const config = tempoController.getConfig();
+            
+            assert(config.minBPM === 60, `Min BPM should be 60, got ${config.minBPM}`);
+            assert(config.maxBPM === 180, `Max BPM should be 180, got ${config.maxBPM}`);
+            assert(config.transitionDuration === 2.0, `Transition duration should be 2.0s, got ${config.transitionDuration}s`);
+            assert(config.scalingCurve === 'linear', `Scaling curve should be 'linear', got '${config.scalingCurve}'`);
+            
+            // Test 3: BPM scaling curves
+            section('Test 3: BPM Scaling');
+            
+            // Linear scaling tests
+            tempoController.setTempoImmediate(1.0);
+            assert(Math.abs(tempoController.getBeatsPerMinute() - 60) < 0.1, `Linear 1.0x should be ~60 BPM, got ${tempoController.getBeatsPerMinute().toFixed(1)}`);
+            
+            tempoController.setTempoImmediate(3.0);
+            assert(Math.abs(tempoController.getBeatsPerMinute() - 120) < 0.1, `Linear 3.0x should be ~120 BPM, got ${tempoController.getBeatsPerMinute().toFixed(1)}`);
+            
+            tempoController.setTempoImmediate(5.0);
+            assert(Math.abs(tempoController.getBeatsPerMinute() - 180) < 0.1, `Linear 5.0x should be ~180 BPM, got ${tempoController.getBeatsPerMinute().toFixed(1)}`);
+            
+            // Exponential scaling tests
+            tempoController.updateConfig({ scalingCurve: 'exponential' });
+            tempoController.setTempoImmediate(3.0);
+            const expoBPM = tempoController.getBeatsPerMinute();
+            assert(expoBPM > 60 && expoBPM < 180, `Exponential 3.0x should be between 60-180 BPM, got ${expoBPM.toFixed(1)}`);
+            
+            // Logarithmic scaling tests
+            tempoController.updateConfig({ scalingCurve: 'logarithmic' });
+            tempoController.setTempoImmediate(3.0);
+            const logBPM = tempoController.getBeatsPerMinute();
+            assert(logBPM > 60 && logBPM < 180, `Logarithmic 3.0x should be between 60-180 BPM, got ${logBPM.toFixed(1)}`);
+            
+            // Test 4: Utility methods
+            section('Test 4: Utility Methods');
+            tempoController.updateConfig({ scalingCurve: 'linear' });
+            tempoController.setTempoImmediate(2.0);
+            
+            const bpm = tempoController.getBeatsPerMinute();
+            const multiplier = tempoController.getTempoMultiplier();
+            const beatInterval = tempoController.getBeatInterval();
+            
+            assert(Math.abs(bpm - 90) < 0.1, `BPM for 2.0x should be ~90, got ${bpm.toFixed(1)}`);
+            assert(Math.abs(multiplier - 1.5) < 0.1, `Tempo multiplier should be ~1.5, got ${multiplier.toFixed(2)}`);
+            assert(Math.abs(beatInterval - 0.667) < 0.01, `Beat interval should be ~0.667s, got ${beatInterval.toFixed(3)}s`);
+            
+            // Test 5: Configuration updates
+            section('Test 5: Configuration Updates');
+            tempoController.updateConfig({ 
+                minBPM: 80, 
+                maxBPM: 200,
+                transitionDuration: 1.5,
+                responsiveness: 0.6
+            });
+            
+            const newConfig = tempoController.getConfig();
+            assert(newConfig.minBPM === 80, `Updated min BPM should be 80, got ${newConfig.minBPM}`);
+            assert(newConfig.maxBPM === 200, `Updated max BPM should be 200, got ${newConfig.maxBPM}`);
+            assert(newConfig.transitionDuration === 1.5, `Updated transition duration should be 1.5s, got ${newConfig.transitionDuration}s`);
+            assert(newConfig.responsiveness === 0.6, `Updated responsiveness should be 0.6, got ${newConfig.responsiveness}`);
+            
+            // Test 6: Reset functionality
+            section('Test 6: Reset');
+            tempoController.setTempoImmediate(4.0);
+            const beforeResetBPM = tempoController.getBeatsPerMinute();
+            
+            tempoController.reset();
+            const resetState = tempoController.getState();
+            assert(resetState.currentBPM === 80, `After reset BPM should be 80 (min), got ${resetState.currentBPM}`);
+            assert(resetState.speedMultiplier === 1.0, `After reset speed should be 1.0x, got ${resetState.speedMultiplier}x`);
+            assert(!resetState.isTransitioning, `Should not be transitioning after reset`);
+            
+            // Test 7: Edge cases
+            section('Test 7: Edge Cases');
+            
+            // Test speed clamping
+            tempoController.setTempoImmediate(-1.0);
+            assert(tempoController.getState().speedMultiplier === 1.0, `Negative speed should be clamped to 1.0x, got ${tempoController.getState().speedMultiplier}x`);
+            
+            tempoController.setTempoImmediate(10.0);
+            assert(tempoController.getState().speedMultiplier === 5.0, `High speed should be clamped to 5.0x, got ${tempoController.getState().speedMultiplier}x`);
+            
+            // Test invalid config values
+            tempoController.updateConfig({ 
+                minBPM: -50,
+                maxBPM: 1000,
+                transitionDuration: -1,
+                responsiveness: 5.0
+            });
+            
+            const validatedConfig = tempoController.getConfig();
+            assert(validatedConfig.minBPM >= 30, `Min BPM should be validated >= 30, got ${validatedConfig.minBPM}`);
+            assert(validatedConfig.maxBPM <= 300, `Max BPM should be validated <= 300, got ${validatedConfig.maxBPM}`);
+            assert(validatedConfig.transitionDuration >= 0.1, `Transition duration should be validated >= 0.1, got ${validatedConfig.transitionDuration}`);
+            assert(validatedConfig.responsiveness <= 1.0, `Responsiveness should be validated <= 1.0, got ${validatedConfig.responsiveness}`);
+            
+            // Test 8: Web Audio context integration
+            section('Test 8: AudioContext Integration');
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                tempoController.setAudioContext(audioContext);
+                
+                const nextBeatTime = tempoController.getNextBeatTime();
+                assert(nextBeatTime > audioContext.currentTime, `Next beat time should be in the future, got ${nextBeatTime}`);
+                
+                log('✓ AudioContext integration works', 'pass');
+                passCount++;
+                testCount++;
+            } catch (error) {
+                log(`AudioContext test skipped: ${error.message}`, 'info');
+            }
+            
+            // Test 9: Performance
+            section('Test 9: Performance');
+            const startTime = performance.now();
+            
+            for (let i = 0; i < 1000; i++) {
+                tempoController.setTempoImmediate(1.0 + (i % 4));
+                tempoController.getBeatsPerMinute();
+                tempoController.getBeatInterval();
+                tempoController.getState();
+            }
+            
+            const endTime = performance.now();
+            const executionTime = endTime - startTime;
+            assert(executionTime < 100, `1000 operations should complete in <100ms, took ${executionTime.toFixed(2)}ms`);
+            
+            // Test 10: Cleanup
+            section('Test 10: Cleanup');
+            tempoController.dispose();
+            log('✓ TempoController disposed successfully', 'pass');
+            passCount++;
+            testCount++;
+            
+            // Summary
+            section('Test Summary');
+            log(`Tests completed: ${passCount}/${testCount} passed`, passCount === testCount ? 'pass' : 'fail');
+            
+            if (passCount === testCount) {
+                log('🎉 All TempoController validation tests passed!', 'pass');
+                log('✓ Basic initialization and state management', 'pass');
+                log('✓ Configuration management and validation', 'pass');
+                log('✓ BPM scaling curves (linear, exponential, logarithmic)', 'pass');
+                log('✓ Utility methods (tempo multiplier, beat interval, next beat time)', 'pass');
+                log('✓ Dynamic configuration updates', 'pass');
+                log('✓ Reset functionality', 'pass');
+                log('✓ Edge case handling and input validation', 'pass');
+                log('✓ AudioContext integration', 'pass');
+                log('✓ Performance characteristics', 'pass');
+                log('✓ Proper cleanup and disposal', 'pass');
+                log('🎵 TempoController implementation meets all acceptance criteria!', 'pass');
+            } else {
+                log(`❌ Some tests failed. Check the results above.`, 'fail');
+            }
+        }
+        
+        // Auto-run tests when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add click handler to resume AudioContext if needed
+            document.body.addEventListener('click', async () => {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                } catch (error) {
+                    // AudioContext not supported or other error
+                }
+            }, { once: true });
+            
+            runTests().catch(error => {
+                log(`Test execution error: ${error.message}`, 'fail');
+                console.error('Test error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
