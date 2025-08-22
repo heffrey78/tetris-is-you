@@ -3,12 +3,38 @@
  * Handles both music and sound effects with MIDI-inspired synthesis
  */
 
+import { TempoController, TempoConfig } from './audio/TempoController.js';
+import { SpeedChangeEventDetail } from './GameConfig.js';
+import { MusicEventSubscriber, MusicEventSubscriberConfig, DEFAULT_MUSIC_EVENT_CONFIG, MusicEventCallback } from './audio/MusicEventSubscriber.js';
+import { LayeredMusicManager, LayeredMusicFeatureFlags, DEFAULT_FEATURE_FLAGS, LayeredMusicStats } from './audio/LayeredMusicManager.js';
+import { LayeredMusicConfig, DEFAULT_LAYERED_MUSIC_CONFIG, MusicState } from './types/MusicTypes.js';
+import { PerformanceMonitor, PerformanceMetrics } from './utils/PerformanceMonitor.js';
+
 export interface AudioConfig {
     masterVolume: number;
     musicVolume: number;
     sfxVolume: number;
     enableMusic: boolean;
     enableSFX: boolean;
+    // Tempo responsiveness settings
+    enableTempoScaling: boolean;
+    tempoScaling: {
+        minBPM: number;
+        maxBPM: number;
+        transitionDuration: number;
+        scalingCurve: 'linear' | 'exponential' | 'logarithmic';
+        responsiveness: number;
+    };
+    // Adaptive music settings
+    enableAdaptiveMusic: boolean;
+    adaptiveMusic: {
+        enableLayeredMusic: boolean;
+        enableRuleThemes: boolean;
+        enableStingers: boolean;
+        enableMusicEvents: boolean;
+        featureFlags: LayeredMusicFeatureFlags;
+        musicEventConfig: MusicEventSubscriberConfig;
+    };
 }
 
 export interface SoundEffect {
@@ -31,6 +57,17 @@ export class AudioSystem {
     private sfxGain: GainNode | null = null;
     private config: AudioConfig;
     private currentMusic: AudioBufferSourceNode | null = null;
+    private tempoController: TempoController | null = null;
+    private speedChangeListener: ((event: Event) => void) | null = null;
+    
+    // Adaptive music components
+    private layeredMusicManager: LayeredMusicManager | null = null;
+    private musicEventSubscriber: MusicEventSubscriber | null = null;
+    private performanceMonitor: PerformanceMonitor | null = null;
+    private isUsingAdaptiveMusic: boolean = false;
+    private fallbackMode: boolean = false;
+    private lastMusicState: MusicState = MusicState.IDLE;
+    private lastIntensity: number = 0.0;
     
     // Sound effect definitions based on MIDI-style synthesis
     private soundEffects: { [key: string]: SoundEffect } = {
@@ -167,15 +204,34 @@ export class AudioSystem {
         musicVolume: 0.5,
         sfxVolume: 0.8,
         enableMusic: true,
-        enableSFX: true
+        enableSFX: true,
+        enableTempoScaling: true,
+        tempoScaling: {
+            minBPM: 60,
+            maxBPM: 180,
+            transitionDuration: 2.0,
+            scalingCurve: 'linear',
+            responsiveness: 0.8
+        },
+        enableAdaptiveMusic: true,
+        adaptiveMusic: {
+            enableLayeredMusic: true,
+            enableRuleThemes: true,
+            enableStingers: true,
+            enableMusicEvents: true,
+            featureFlags: DEFAULT_FEATURE_FLAGS,
+            musicEventConfig: DEFAULT_MUSIC_EVENT_CONFIG
+        }
     }) {
         this.config = config;
-        this.initialize();
+        // Don't initialize immediately - wait for user interaction
     }
     
     private async initialize(): Promise<void> {
+        if (this.audioContext) return; // Already initialized
+        
         try {
-            // Create AudioContext
+            // Create AudioContext - will be allowed after user interaction
             this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             
             // Create gain nodes for volume control
@@ -190,6 +246,19 @@ export class AudioSystem {
             
             // Set initial volumes
             this.updateVolumes();
+            
+            // Initialize TempoController if tempo scaling is enabled
+            if (this.config.enableTempoScaling) {
+                this.initializeTempoController();
+            }
+            
+            // Setup speed change event listener
+            this.setupSpeedChangeListener();
+            
+            // Initialize adaptive music system if enabled
+            if (this.config.enableAdaptiveMusic) {
+                await this.initializeAdaptiveMusic();
+            }
             
             console.log('🎵 Audio system initialized successfully');
         } catch (error) {
@@ -208,8 +277,13 @@ export class AudioSystem {
     /**
      * Play a sound effect using Web Audio synthesis
      */
-    public playSoundEffect(effectName: string): void {
-        if (!this.config.enableSFX || !this.audioContext || !this.sfxGain) return;
+    public async playSoundEffect(effectName: string): Promise<void> {
+        if (!this.config.enableSFX) return;
+        
+        // Initialize audio system if needed (requires user interaction)
+        await this.initialize();
+        
+        if (!this.audioContext || !this.sfxGain) return;
         
         const effect = this.soundEffects[effectName];
         if (!effect) {
@@ -325,26 +399,59 @@ export class AudioSystem {
     }
     
     /**
-     * Play the main MIDI-style soundtrack
+     * Play the main soundtrack - uses layered system if available, falls back to static music
      */
-    public playMusic(): void {
-        if (!this.config.enableMusic || !this.audioContext || !this.musicGain) return;
+    public async playMusic(): Promise<void> {
+        if (!this.config.enableMusic) return;
+        
+        // Initialize audio system if needed (requires user interaction)
+        await this.initialize();
+        
+        if (!this.audioContext || !this.musicGain) return;
         
         this.stopMusic();
+        
+        try {
+            // Try adaptive music first if enabled and available
+            if (this.config.enableAdaptiveMusic && this.layeredMusicManager && !this.fallbackMode) {
+                console.log('🎵 Starting adaptive layered music system');
+                this.isUsingAdaptiveMusic = true;
+                await this.layeredMusicManager.play();
+                return;
+            }
+        } catch (error) {
+            console.error('Failed to start adaptive music, falling back to static music:', error);
+            this.fallbackMode = true;
+            this.isUsingAdaptiveMusic = false;
+        }
+        
+        // Fallback to static wizard theme
+        console.log('🎵 Using static wizard theme music');
         this.playOminousWizardTheme();
     }
     
     /**
-     * Stop currently playing music
+     * Stop currently playing music - handles both adaptive and static music
      */
-    public stopMusic(): void {
-        if (this.currentMusic) {
-            try {
-                this.currentMusic.stop();
-            } catch (error) {
-                // Already stopped
+    public async stopMusic(): Promise<void> {
+        try {
+            // Stop adaptive music if active
+            if (this.isUsingAdaptiveMusic && this.layeredMusicManager) {
+                await this.layeredMusicManager.stop();
+                this.isUsingAdaptiveMusic = false;
             }
-            this.currentMusic = null;
+            
+            // Stop static music if active
+            if (this.currentMusic) {
+                try {
+                    this.currentMusic.stop();
+                } catch (error) {
+                    // Already stopped
+                }
+                this.currentMusic = null;
+            }
+        } catch (error) {
+            console.error('Error stopping music:', error);
         }
     }
     
@@ -447,13 +554,25 @@ export class AudioSystem {
      * Update audio configuration
      */
     public updateConfig(newConfig: Partial<AudioConfig>): void {
+        const oldConfig = { ...this.config };
         this.config = { ...this.config, ...newConfig };
         this.updateVolumes();
         
+        // Handle music enable/disable changes
         if (!this.config.enableMusic) {
             this.stopMusic();
-        } else if (!this.currentMusic) {
+        } else if (!this.isUsingAdaptiveMusic && !this.currentMusic) {
             this.playMusic();
+        }
+        
+        // Handle tempo scaling configuration changes
+        if (newConfig.enableTempoScaling !== undefined || newConfig.tempoScaling) {
+            this.handleTempoConfigChange(oldConfig, this.config);
+        }
+        
+        // Handle adaptive music configuration changes
+        if (newConfig.enableAdaptiveMusic !== undefined || newConfig.adaptiveMusic) {
+            this.handleAdaptiveMusicConfigChange(oldConfig, this.config);
         }
     }
     
@@ -482,8 +601,8 @@ export class AudioSystem {
     }
     
     /**
-     * Subscribe to EventEmitter events for reactive audio
-     * This demonstrates the integration points mentioned in TASK-0063
+     * Subscribe to EventEmitter events for reactive audio (fallback/legacy support)
+     * This maintains compatibility with existing sound effect system
      */
     public subscribeToGameEvents(ruleEngine: any, gameLogic: any): void {
         if (!ruleEngine?.getEventEmitter || !gameLogic?.getEventEmitter) {
@@ -583,6 +702,400 @@ export class AudioSystem {
             }
         });
         
-        console.log('🎵 AudioSystem successfully subscribed to EventEmitter events');
+        console.log('🎵 AudioSystem successfully subscribed to EventEmitter events (legacy mode)');
+    }
+    
+    /**
+     * Initialize TempoController with current audio configuration
+     */
+    private initializeTempoController(): void {
+        try {
+            this.tempoController = new TempoController(
+                this.audioContext,
+                this.config.tempoScaling
+            );
+            
+            console.log('🎵 TempoController initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize TempoController:', error);
+        }
+    }
+    
+    /**
+     * Setup event listener for speed change events from DifficultyScaler
+     */
+    private setupSpeedChangeListener(): void {
+        try {
+            // Create event listener function
+            this.speedChangeListener = (event: Event) => {
+                const customEvent = event as CustomEvent<SpeedChangeEventDetail>;
+                this.handleSpeedChange(customEvent.detail);
+            };
+            
+            // Add event listener to window for 'speedChange' events
+            window.addEventListener('speedChange', this.speedChangeListener);
+            
+            console.log('🎵 Speed change event listener setup successfully');
+        } catch (error) {
+            console.error('Failed to setup speed change listener:', error);
+        }
+    }
+    
+    /**
+     * Handle speed change events from DifficultyScaler
+     * Maps speedMultiplier (1.0-5.0) to BPM range using TempoController
+     */
+    private handleSpeedChange(eventDetail: SpeedChangeEventDetail): void {
+        if (!this.config.enableTempoScaling || !this.tempoController) {
+            console.log('🎵 Tempo scaling disabled or TempoController not available');
+            return;
+        }
+        
+        try {
+            const { newSpeed, oldSpeed, level, difficultyName } = eventDetail;
+            
+            // Validate speed multiplier range
+            if (newSpeed < 1.0 || newSpeed > 5.0) {
+                console.warn(`🎵 Invalid speed multiplier: ${newSpeed}. Expected range 1.0-5.0`);
+                return;
+            }
+            
+            // Call TempoController.setTempo() with speed multiplier
+            this.tempoController.setTempo(newSpeed);
+            
+            console.log(`🎵 Audio tempo updated: ${oldSpeed.toFixed(2)}x → ${newSpeed.toFixed(2)}x (Level ${level}, ${difficultyName})`);
+            
+        } catch (error) {
+            console.error('Failed to handle speed change:', error);
+        }
+    }
+    
+    /**
+     * Get current tempo information from TempoController
+     */
+    public getTempoInfo(): { bpm: number; speedMultiplier: number; isTransitioning: boolean } | null {
+        if (!this.tempoController) {
+            return null;
+        }
+        
+        const state = this.tempoController.getState();
+        return {
+            bpm: state.currentBPM,
+            speedMultiplier: state.speedMultiplier,
+            isTransitioning: state.isTransitioning
+        };
+    }
+    
+    /**
+     * Handle tempo configuration changes
+     */
+    private handleTempoConfigChange(oldConfig: AudioConfig, newConfig: AudioConfig): void {
+        try {
+            // Check if tempo scaling was enabled/disabled
+            if (oldConfig.enableTempoScaling !== newConfig.enableTempoScaling) {
+                if (newConfig.enableTempoScaling) {
+                    // Enable tempo scaling - initialize TempoController if not already done
+                    if (!this.tempoController) {
+                        this.initializeTempoController();
+                    }
+                    console.log('🎵 Tempo scaling enabled');
+                } else {
+                    // Disable tempo scaling - dispose TempoController
+                    if (this.tempoController) {
+                        this.tempoController.dispose();
+                        this.tempoController = null;
+                    }
+                    console.log('🎵 Tempo scaling disabled');
+                }
+            }
+            
+            // Update TempoController configuration if it exists and tempo scaling settings changed
+            if (this.tempoController && newConfig.tempoScaling && newConfig.enableTempoScaling) {
+                this.tempoController.updateConfig(newConfig.tempoScaling);
+                console.log('🎵 TempoController configuration updated');
+            }
+            
+        } catch (error) {
+            console.error('Failed to handle tempo config change:', error);
+        }
+    }
+    
+    /**
+     * Initialize adaptive music system with layered composition and event handling
+     */
+    private async initializeAdaptiveMusic(): Promise<void> {
+        try {
+            console.log('🎵 Initializing adaptive music system...');
+            
+            // Initialize performance monitor
+            this.performanceMonitor = new PerformanceMonitor();
+            
+            // Initialize MusicEventSubscriber
+            if (this.config.adaptiveMusic.enableMusicEvents) {
+                this.musicEventSubscriber = new MusicEventSubscriber(this.config.adaptiveMusic.musicEventConfig);
+                this.setupMusicEventCallbacks();
+                console.log('🎵 MusicEventSubscriber initialized');
+            }
+            
+            // Initialize LayeredMusicManager
+            if (this.config.adaptiveMusic.enableLayeredMusic) {
+                const layeredConfig: LayeredMusicConfig = {
+                    ...DEFAULT_LAYERED_MUSIC_CONFIG,
+                    masterVolume: this.config.masterVolume,
+                    musicVolume: this.config.musicVolume,
+                    enableMusic: this.config.enableMusic
+                };
+                
+                this.layeredMusicManager = new LayeredMusicManager(
+                    this.audioContext!,
+                    this.musicGain!,
+                    {
+                        audioConfig: this.config,
+                        musicConfig: layeredConfig,
+                        initializeDefaultLayers: true,
+                        autoStart: false,
+                        initialState: MusicState.IDLE,
+                        initialIntensity: 0.0
+                    }
+                );
+                
+                // Set up performance adjustment callback
+                this.layeredMusicManager.setPerformanceAdjustmentCallback((qualityLevel: number) => {
+                    this.handlePerformanceAdjustment(qualityLevel);
+                });
+                
+                console.log('🎵 LayeredMusicManager initialized');
+            }
+            
+            console.log('🎵 Adaptive music system initialized successfully');
+            
+        } catch (error) {
+            console.error('Failed to initialize adaptive music system:', error);
+            this.fallbackMode = true;
+        }
+    }
+    
+    /**
+     * Setup callbacks for music events to control adaptive music
+     */
+    private setupMusicEventCallbacks(): void {
+        if (!this.musicEventSubscriber) return;
+        
+        const musicEventCallback: MusicEventCallback = (eventType, eventData, musicAction) => {
+            this.handleMusicEvent(eventType, eventData, musicAction);
+        };
+        
+        this.musicEventSubscriber.registerCallback(musicEventCallback);
+    }
+    
+    /**
+     * Handle music events and update adaptive music accordingly
+     */
+    private handleMusicEvent(eventType: any, eventData: any, musicAction: any): void {
+        if (!this.layeredMusicManager || this.fallbackMode) return;
+        
+        try {
+            switch (musicAction.type) {
+                case 'state_transition':
+                    if (musicAction.data?.newState) {
+                        this.transitionToMusicState(musicAction.data.newState, musicAction.data.intensity || 0.5);
+                    }
+                    break;
+                    
+                case 'intensity_change':
+                    if (musicAction.data?.intensity !== undefined) {
+                        this.setMusicIntensity(musicAction.data.intensity);
+                    }
+                    break;
+                    
+                case 'stinger':
+                    // Sound effects are handled by the existing system
+                    if (musicAction.data?.soundEffect) {
+                        this.playSoundEffect(musicAction.data.soundEffect);
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error('Error handling music event:', error);
+        }
+    }
+    
+    /**
+     * Connect adaptive music to game event systems
+     */
+    public connectToGameSystems(ruleEngine: any, gameLogic: any): void {
+        try {
+            // Connect MusicEventSubscriber to game systems
+            if (this.musicEventSubscriber && ruleEngine && gameLogic) {
+                this.musicEventSubscriber.subscribe(ruleEngine, gameLogic);
+                console.log('🎵 Adaptive music connected to game systems');
+            }
+            
+            // Also maintain legacy event subscription for sound effects
+            this.subscribeToGameEvents(ruleEngine, gameLogic);
+            
+        } catch (error) {
+            console.error('Failed to connect adaptive music to game systems:', error);
+            this.fallbackMode = true;
+        }
+    }
+    
+    /**
+     * Transition to a specific music state
+     */
+    public async transitionToMusicState(state: MusicState, intensity: number = 0.5): Promise<void> {
+        if (!this.layeredMusicManager || this.fallbackMode || !this.config.enableMusic) return;
+        
+        try {
+            this.lastMusicState = state;
+            this.lastIntensity = intensity;
+            await this.layeredMusicManager.transitionToState(state, intensity);
+            console.log(`🎵 Music state transition: ${state} (intensity: ${intensity.toFixed(2)})`);
+        } catch (error) {
+            console.error('Failed to transition music state:', error);
+        }
+    }
+    
+    /**
+     * Set music intensity level
+     */
+    public async setMusicIntensity(intensity: number): Promise<void> {
+        if (!this.layeredMusicManager || this.fallbackMode || !this.config.enableMusic) return;
+        
+        try {
+            this.lastIntensity = intensity;
+            await this.layeredMusicManager.setIntensity(intensity);
+        } catch (error) {
+            console.error('Failed to set music intensity:', error);
+        }
+    }
+    
+    /**
+     * Handle performance adjustments from the adaptive music system
+     */
+    private handlePerformanceAdjustment(qualityLevel: number): void {
+        console.log(`🎯 Audio system performance adjustment: Quality level ${qualityLevel}`);
+        
+        // Could adjust sound effect quality, reduce polyphony, etc.
+        // For now, just log the adjustment
+    }
+    
+    /**
+     * Handle adaptive music configuration changes
+     */
+    private async handleAdaptiveMusicConfigChange(oldConfig: AudioConfig, newConfig: AudioConfig): Promise<void> {
+        try {
+            // Check if adaptive music was enabled/disabled
+            if (oldConfig.enableAdaptiveMusic !== newConfig.enableAdaptiveMusic) {
+                if (newConfig.enableAdaptiveMusic) {
+                    // Enable adaptive music
+                    await this.initializeAdaptiveMusic();
+                    console.log('🎵 Adaptive music enabled');
+                } else {
+                    // Disable adaptive music
+                    this.disposeAdaptiveMusic();
+                    console.log('🎵 Adaptive music disabled');
+                }
+            }
+            
+            // Update configurations if components exist
+            if (this.musicEventSubscriber && newConfig.adaptiveMusic.musicEventConfig) {
+                this.musicEventSubscriber.updateConfig(newConfig.adaptiveMusic.musicEventConfig);
+            }
+            
+            if (this.layeredMusicManager && newConfig.adaptiveMusic.featureFlags) {
+                this.layeredMusicManager.updateFeatureFlags(newConfig.adaptiveMusic.featureFlags);
+            }
+            
+        } catch (error) {
+            console.error('Failed to handle adaptive music config change:', error);
+        }
+    }
+    
+    /**
+     * Dispose adaptive music components
+     */
+    private disposeAdaptiveMusic(): void {
+        try {
+            if (this.musicEventSubscriber) {
+                this.musicEventSubscriber.dispose();
+                this.musicEventSubscriber = null;
+            }
+            
+            if (this.layeredMusicManager) {
+                this.layeredMusicManager.dispose();
+                this.layeredMusicManager = null;
+            }
+            
+            if (this.performanceMonitor) {
+                this.performanceMonitor = null;
+            }
+            
+            this.isUsingAdaptiveMusic = false;
+            this.fallbackMode = false;
+            
+        } catch (error) {
+            console.error('Error disposing adaptive music:', error);
+        }
+    }
+    
+    /**
+     * Get adaptive music statistics and status
+     */
+    public getAdaptiveMusicStats(): LayeredMusicStats | null {
+        return this.layeredMusicManager ? this.layeredMusicManager.getStats() : null;
+    }
+    
+    /**
+     * Check if adaptive music is active
+     */
+    public isAdaptiveMusicActive(): boolean {
+        return this.isUsingAdaptiveMusic && !this.fallbackMode;
+    }
+    
+    /**
+     * Force fallback to static music (for testing or emergencies)
+     */
+    public forceFallbackMode(enable: boolean = true): void {
+        this.fallbackMode = enable;
+        if (enable && this.isUsingAdaptiveMusic) {
+            console.log('🎵 Forcing fallback to static music');
+            this.stopMusic().then(() => this.playMusic());
+        }
+    }
+    
+    /**
+     * Cleanup method to dispose resources and remove event listeners
+     */
+    public dispose(): void {
+        try {
+            // Remove speed change event listener
+            if (this.speedChangeListener) {
+                window.removeEventListener('speedChange', this.speedChangeListener);
+                this.speedChangeListener = null;
+            }
+            
+            // Dispose TempoController
+            if (this.tempoController) {
+                this.tempoController.dispose();
+                this.tempoController = null;
+            }
+            
+            // Dispose adaptive music components
+            this.disposeAdaptiveMusic();
+            
+            // Stop current music
+            this.stopMusic();
+            
+            // Close audio context
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                this.audioContext.close();
+                this.audioContext = null;
+            }
+            
+            console.log('🎵 AudioSystem disposed successfully');
+        } catch (error) {
+            console.error('Failed to dispose AudioSystem:', error);
+        }
     }
 }

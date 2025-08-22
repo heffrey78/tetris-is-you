@@ -76,6 +76,10 @@ export class ConfigLoader {
             effectIntensity: {
                 ...DEFAULT_CONFIG.effectIntensity,
                 ...loadedConfig.effectIntensity
+            },
+            difficultyScaling: {
+                ...DEFAULT_CONFIG.difficultyScaling,
+                ...loadedConfig.difficultyScaling
             }
         };
     }

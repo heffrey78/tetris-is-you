@@ -9,11 +9,11 @@ import {
     Note, 
     OscillatorConfig, 
     Envelope 
-} from './BaseMusicLayer';
+} from './BaseMusicLayer.js';
 import { 
     LayerType, 
     MusicState 
-} from '../types/MusicTypes';
+} from '../types/MusicTypes.js';
 
 /**
  * Bass note pattern types for different musical contexts

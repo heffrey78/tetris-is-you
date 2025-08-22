@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Difficulty Scaling Test</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-panel {
+            background: #222;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #444;
+        }
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        button {
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #555;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .metric {
+            background: #333;
+            padding: 10px;
+            border-radius: 3px;
+            border-left: 3px solid #666;
+        }
+        .metric.speed {
+            border-left-color: #ff8800;
+        }
+        .metric.chaos {
+            border-left-color: #ff0088;
+        }
+        .metric.level {
+            border-left-color: #00ff88;
+        }
+        .log {
+            background: #111;
+            padding: 10px;
+            border-radius: 3px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .test-canvas {
+            background: #000;
+            border: 1px solid #444;
+            display: block;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Difficulty Scaling System Test</h1>
+    
+    <div class="test-panel">
+        <h3>Game Controls</h3>
+        <div class="control-panel">
+            <button onclick="startTest()">Start Test Game</button>
+            <button onclick="simulateProgress()">Simulate Progress</button>
+            <button onclick="resetGame()">Reset Game</button>
+            <button onclick="changeDifficulty()">Change Difficulty</button>
+        </div>
+        
+        <canvas id="testCanvas" class="test-canvas" width="400" height="300"></canvas>
+    </div>
+    
+    <div class="test-panel">
+        <h3>Difficulty Metrics</h3>
+        <div class="metrics" id="metrics">
+            <div class="metric level">
+                <strong>Level:</strong> <span id="levelValue">-</span>
+            </div>
+            <div class="metric speed">
+                <strong>Speed Multiplier:</strong> <span id="speedValue">-</span>
+            </div>
+            <div class="metric chaos">
+                <strong>Chaos Level:</strong> <span id="chaosValue">-</span>
+            </div>
+            <div class="metric">
+                <strong>Difficulty Name:</strong> <span id="difficultyName">-</span>
+            </div>
+            <div class="metric">
+                <strong>Scaling Mode:</strong> <span id="scalingMode">-</span>
+            </div>
+            <div class="metric">
+                <strong>Drop Interval:</strong> <span id="dropInterval">-</span>ms
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-panel">
+        <h3>Event Log</h3>
+        <div class="log" id="eventLog">
+            Waiting for test to start...
+        </div>
+    </div>
+
+    <script type="module">
+        import { Game } from './dist/Game.js';
+        import { DEFAULT_CONFIG, DIFFICULTY_CONFIGS } from './dist/GameConfig.js';
+        
+        let game = null;
+        let currentDifficulty = 'NORMAL';
+        let simulationInterval = null;
+        
+        function log(message) {
+            const logElement = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateMetrics() {
+            if (!game) return;
+            
+            const difficultyState = game.getDifficultyScaler().getState();
+            const dropInterval = game.getDifficultyScaler().getDropInterval();
+            
+            document.getElementById('levelValue').textContent = difficultyState.currentLevel;
+            document.getElementById('speedValue').textContent = difficultyState.speedMultiplier.toFixed(2) + 'x';
+            document.getElementById('chaosValue').textContent = difficultyState.chaosLevel;
+            document.getElementById('difficultyName').textContent = difficultyState.difficultyName;
+            document.getElementById('scalingMode').textContent = difficultyState.scalingMode;
+            document.getElementById('dropInterval').textContent = dropInterval;
+        }
+        
+        window.startTest = async function() {
+            log('🎮 Starting difficulty scaling test...');
+            
+            const canvas = document.getElementById('testCanvas');
+            const config = DIFFICULTY_CONFIGS[currentDifficulty];
+            
+            game = new Game(canvas, config);
+            await game.start();
+            
+            log(`✅ Game started with ${currentDifficulty} difficulty`);
+            log(`📊 Scaling mode: ${config.difficultyScaling.mode}`);
+            
+            // Start metrics monitoring
+            const metricsInterval = setInterval(() => {
+                if (game) {
+                    updateMetrics();
+                } else {
+                    clearInterval(metricsInterval);
+                }
+            }, 1000);
+            
+            updateMetrics();
+        };
+        
+        window.simulateProgress = function() {
+            if (!game) {
+                log('❌ Start the game first!');
+                return;
+            }
+            
+            log('🔄 Simulating game progress...');
+            
+            let lines = 0;
+            simulationInterval = setInterval(() => {
+                // Simulate clearing lines
+                lines += Math.floor(Math.random() * 3) + 1;
+                const level = Math.floor(lines / 10) + 1;
+                
+                // Manually update game state for testing
+                game.gameState.linesCleared = lines;
+                game.gameState.level = level;
+                game.gameState.score = lines * 100;
+                
+                // Update difficulty scaler
+                game.getDifficultyScaler().update({ level, linesCleared: lines });
+                
+                const difficultyState = game.getDifficultyScaler().getState();
+                log(`📈 Lines: ${lines}, Level: ${level}, Difficulty: ${difficultyState.difficultyName}`);
+                
+                updateMetrics();
+                
+                // Stop simulation after reaching high level
+                if (level > 15) {
+                    clearInterval(simulationInterval);
+                    log('🎯 Simulation complete! Reached maximum test level.');
+                }
+            }, 2000);
+        };
+        
+        window.resetGame = function() {
+            if (game) {
+                game.restart();
+                log('🔄 Game reset');
+            }
+            
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+            }
+            
+            updateMetrics();
+        };
+        
+        window.changeDifficulty = function() {
+            const difficulties = ['EASY', 'NORMAL', 'HARD'];
+            const currentIndex = difficulties.indexOf(currentDifficulty);
+            const nextIndex = (currentIndex + 1) % difficulties.length;
+            currentDifficulty = difficulties[nextIndex];
+            
+            log(`🎚️ Difficulty changed to: ${currentDifficulty}`);
+            
+            if (game) {
+                const config = DIFFICULTY_CONFIGS[currentDifficulty];
+                game.loadConfiguration(currentDifficulty.toLowerCase());
+                log(`📊 New scaling mode: ${config.difficultyScaling.mode}`);
+            }
+        };
+        
+        // Override console.log to capture chaos rule additions
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            const message = args.join(' ');
+            if (message.includes('CHAOS RULE ADDED')) {
+                log(`🌪️ ${message}`);
+            } else if (message.includes('Level up!')) {
+                log(`⬆️ ${message}`);
+            }
+        };
+        
+        log('🚀 Difficulty scaling test ready! Click "Start Test Game" to begin.');
+    </script>
+</body>
+</html>

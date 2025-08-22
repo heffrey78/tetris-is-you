@@ -272,20 +272,54 @@ export class Renderer {
         this.ctx.restore();
     }
     applyAnimationEffect(pixelX, pixelY, gridSize, animation) {
-        // For now, we'll add subtle animation hints
-        // Full animations would require animation frames and timing
+        // Enhanced animation system with smoother transitions
         const time = Date.now() * 0.001; // Convert to seconds
         switch (animation) {
             case 'pulse':
-                // Slight scale variation for pulse effect
-                const pulseScale = 1 + Math.sin(time * 4) * 0.05;
+                // Smooth pulse effect with easing
+                const pulseProgress = (Math.sin(time * 4) + 1) / 2;
+                const easedPulse = this.easeInOutQuad(pulseProgress);
+                const pulseScale = 1 + easedPulse * 0.08;
                 this.ctx.transform(pulseScale, 0, 0, pulseScale, pixelX + gridSize / 2, pixelY + gridSize / 2);
                 break;
             case 'phase':
-                // Slight opacity variation for phase effect
-                this.ctx.globalAlpha *= 0.7 + Math.sin(time * 3) * 0.2;
+                // Smooth phase effect with gentle opacity transition
+                const phaseProgress = (Math.sin(time * 3) + 1) / 2;
+                const easedPhase = this.easeInOutQuad(phaseProgress);
+                this.ctx.globalAlpha *= 0.6 + easedPhase * 0.4;
+                break;
+            case 'sink':
+                // Smooth sinking animation with natural fall
+                const sinkProgress = (Math.sin(time * 2) + 1) / 2;
+                const easedSink = this.easeInQuad(sinkProgress);
+                const sinkOffset = easedSink * 3;
+                const sinkAlpha = 0.7 + (1 - easedSink) * 0.3;
+                this.ctx.translate(0, sinkOffset);
+                this.ctx.globalAlpha *= sinkAlpha;
+                break;
+            case 'float':
+                // Smooth floating animation with gentle bob
+                const floatProgress = (Math.sin(time * 1.5) + 1) / 2;
+                const easedFloat = this.easeInOutQuad(floatProgress);
+                const floatOffset = (easedFloat - 0.5) * -3;
+                const floatScale = 1 + easedFloat * 0.05;
+                const floatAlpha = 0.9 + easedFloat * 0.1;
+                this.ctx.translate(0, floatOffset);
+                this.ctx.transform(floatScale, 0, 0, floatScale, pixelX + gridSize / 2, pixelY + gridSize / 2);
+                this.ctx.globalAlpha *= floatAlpha;
+                this.ctx.shadowBlur = 6 + easedFloat * 4;
+                this.ctx.shadowColor = '#87CEEB';
                 break;
         }
+    }
+    easeInOutQuad(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+    easeInQuad(t) {
+        return t * t;
+    }
+    easeOutQuad(t) {
+        return 1 - (1 - t) * (1 - t);
     }
     getApplicableRuleProperties(block, rules) {
         return rules

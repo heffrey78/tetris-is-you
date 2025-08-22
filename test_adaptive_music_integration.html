@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adaptive Music Integration Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #444; 
+            border-radius: 5px;
+            background: #2a2a2a;
+        }
+        button { 
+            margin: 5px; 
+            padding: 10px 15px; 
+            font-size: 14px;
+            background: #4a4a4a;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover { 
+            background: #5a5a5a; 
+        }
+        button:disabled {
+            background: #3a3a3a;
+            cursor: not-allowed;
+        }
+        .status { 
+            margin: 10px 0; 
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .status.success { 
+            background: #2d5a2d; 
+            border: 1px solid #4a7c4a;
+        }
+        .status.error { 
+            background: #5a2d2d; 
+            border: 1px solid #7c4a4a;
+        }
+        .status.info { 
+            background: #2d4a5a; 
+            border: 1px solid #4a6a7c;
+        }
+        .stats {
+            font-family: monospace;
+            font-size: 12px;
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Adaptive Music Integration Test</h1>
+    <p>Test the comprehensive AudioSystem integration with layered music, event handling, and fallback logic.</p>
+
+    <div class="test-section">
+        <h2>Audio System Initialization</h2>
+        <button id="initAudio">Initialize Audio System</button>
+        <button id="connectSystems">Connect to Game Systems</button>
+        <div id="initStatus" class="status info">Click "Initialize Audio System" to start</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Music Control</h2>
+        <button id="playMusic" disabled>Play Music</button>
+        <button id="stopMusic" disabled>Stop Music</button>
+        <button id="forceFallback" disabled>Force Fallback Mode</button>
+        <div id="musicStatus" class="status info">Audio system not initialized</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Adaptive Music States</h2>
+        <button id="stateIdle" disabled>IDLE State</button>
+        <button id="stateBuilding" disabled>BUILDING State</button>
+        <button id="stateIntense" disabled>INTENSE State</button>
+        <button id="stateVictory" disabled>VICTORY State</button>
+        <button id="stateDefeat" disabled>DEFEAT State</button>
+        <div>
+            <label>Intensity: </label>
+            <input type="range" id="intensitySlider" min="0" max="100" value="50" disabled>
+            <span id="intensityValue">50%</span>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Game Events Simulation</h2>
+        <button id="simulateLineClear" disabled>Simulate Line Clear</button>
+        <button id="simulateRuleCreated" disabled>Simulate Rule Created</button>
+        <button id="simulateSpellEffect" disabled>Simulate Spell Effect</button>
+        <button id="simulateConflict" disabled>Simulate Rule Conflict</button>
+    </div>
+
+    <div class="test-section">
+        <h2>System Status</h2>
+        <button id="refreshStats">Refresh Stats</button>
+        <div id="systemStats" class="stats">No stats available</div>
+    </div>
+
+    <script type="module">
+        import { AudioSystem } from './dist/AudioSystem.js';
+        import { MusicState } from './dist/types/MusicTypes.js';
+
+        let audioSystem = null;
+        let mockRuleEngine = null;
+        let mockGameLogic = null;
+
+        // Mock EventEmitter for testing
+        class MockEventEmitter {
+            constructor() {
+                this.listeners = new Map();
+            }
+
+            on(event, callback) {
+                if (!this.listeners.has(event)) {
+                    this.listeners.set(event, []);
+                }
+                this.listeners.get(event).push(callback);
+            }
+
+            off(event, callback) {
+                if (this.listeners.has(event)) {
+                    const callbacks = this.listeners.get(event);
+                    const index = callbacks.indexOf(callback);
+                    if (index > -1) {
+                        callbacks.splice(index, 1);
+                    }
+                }
+            }
+
+            emit(event, data) {
+                if (this.listeners.has(event)) {
+                    this.listeners.get(event).forEach(callback => {
+                        try {
+                            callback(data);
+                        } catch (error) {
+                            console.error('Error in event callback:', error);
+                        }
+                    });
+                }
+            }
+
+            getEventEmitter() {
+                return this;
+            }
+        }
+
+        // Initialize mock systems
+        function createMockSystems() {
+            mockRuleEngine = new MockEventEmitter();
+            mockGameLogic = new MockEventEmitter();
+            
+            console.log('🎮 Mock game systems created');
+        }
+
+        // UI Update Functions
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function updateStats() {
+            if (!audioSystem) {
+                document.getElementById('systemStats').textContent = 'No audio system initialized';
+                return;
+            }
+
+            const stats = audioSystem.getAdaptiveMusicStats();
+            const isAdaptive = audioSystem.isAdaptiveMusicActive();
+            const tempoInfo = audioSystem.getTempoInfo();
+
+            const statsText = `Adaptive Music Active: ${isAdaptive}
+Fallback Mode: ${!isAdaptive && audioSystem.getConfig().enableMusic}
+${stats ? `
+Active Layers: ${stats.activeLayers.length}/${stats.totalLayerCount}
+Current State: ${stats.currentState}
+Intensity: ${(stats.intensity * 100).toFixed(1)}%
+Master Volume: ${(stats.masterVolume * 100).toFixed(1)}%
+Performance: ${stats.performanceMetrics.currentFPS.toFixed(1)} FPS
+` : 'Layered music not available'}
+${tempoInfo ? `
+Tempo: ${tempoInfo.bpm.toFixed(1)} BPM (${tempoInfo.speedMultiplier.toFixed(2)}x)
+Transitioning: ${tempoInfo.isTransitioning}
+` : 'Tempo controller not available'}`;
+
+            document.getElementById('systemStats').textContent = statsText;
+        }
+
+        function enableControls(enabled) {
+            const buttons = [
+                'playMusic', 'stopMusic', 'forceFallback',
+                'stateIdle', 'stateBuilding', 'stateIntense', 'stateVictory', 'stateDefeat',
+                'simulateLineClear', 'simulateRuleCreated', 'simulateSpellEffect', 'simulateConflict',
+                'intensitySlider'
+            ];
+            
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = !enabled;
+            });
+        }
+
+        // Event Handlers
+        document.getElementById('initAudio').addEventListener('click', async () => {
+            try {
+                updateStatus('initStatus', 'Initializing audio system...', 'info');
+                
+                // Create audio system with adaptive music enabled
+                const config = {
+                    masterVolume: 0.7,
+                    musicVolume: 0.5,
+                    sfxVolume: 0.8,
+                    enableMusic: true,
+                    enableSFX: true,
+                    enableAdaptiveMusic: true,
+                    adaptiveMusic: {
+                        enableLayeredMusic: true,
+                        enableRuleThemes: true,
+                        enableStingers: true,
+                        enableMusicEvents: true,
+                        featureFlags: {
+                            enableLayeredMusic: true,
+                            enableRuleThemes: true,
+                            enableStingers: true,
+                            enablePerformanceOptimization: true,
+                            enableAutoStateTransitions: true,
+                            maxConcurrentLayers: 4
+                        },
+                        musicEventConfig: {
+                            debounceDelayMs: 200,
+                            enableDebugLogging: true,
+                            maxQueuedEvents: 20,
+                            eventFilters: {
+                                minSpellIntensity: 0.2,
+                                minLinesClearedForMusic: 1,
+                                enablePieceMovementEvents: true,
+                                enableBlockTransformationEvents: true,
+                                enabledEventTypes: new Set([
+                                    'rule:created', 'rule:modified', 'rule:conflict',
+                                    'game:lineClear', 'game:spellEffect', 'game:stateChange'
+                                ])
+                            },
+                            musicResponses: {
+                                enableAutoStateTransitions: true,
+                                enableStingers: true,
+                                enableLayerChanges: true,
+                                intensityScalingFactor: 1.0
+                            }
+                        }
+                    }
+                };
+
+                audioSystem = new AudioSystem(config);
+                await audioSystem.resumeContext();
+
+                createMockSystems();
+
+                updateStatus('initStatus', 'Audio system initialized successfully!', 'success');
+                updateStatus('musicStatus', 'Ready to play music', 'info');
+                enableControls(true);
+                updateStats();
+
+            } catch (error) {
+                console.error('Failed to initialize audio system:', error);
+                updateStatus('initStatus', `Failed to initialize: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('connectSystems').addEventListener('click', () => {
+            if (!audioSystem || !mockRuleEngine || !mockGameLogic) {
+                updateStatus('initStatus', 'Initialize audio system first', 'error');
+                return;
+            }
+
+            try {
+                audioSystem.connectToGameSystems(mockRuleEngine, mockGameLogic);
+                updateStatus('initStatus', 'Connected to game systems successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to connect systems:', error);
+                updateStatus('initStatus', `Failed to connect: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('playMusic').addEventListener('click', async () => {
+            try {
+                await audioSystem.playMusic();
+                updateStatus('musicStatus', 'Music playing (adaptive mode)', 'success');
+                updateStats();
+            } catch (error) {
+                console.error('Failed to play music:', error);
+                updateStatus('musicStatus', `Failed to play: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('stopMusic').addEventListener('click', async () => {
+            try {
+                await audioSystem.stopMusic();
+                updateStatus('musicStatus', 'Music stopped', 'info');
+                updateStats();
+            } catch (error) {
+                console.error('Failed to stop music:', error);
+                updateStatus('musicStatus', `Failed to stop: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('forceFallback').addEventListener('click', () => {
+            audioSystem.forceFallbackMode(true);
+            updateStatus('musicStatus', 'Forced fallback to static music', 'info');
+            updateStats();
+        });
+
+        // Music state buttons
+        const stateButtons = {
+            'stateIdle': MusicState.IDLE,
+            'stateBuilding': MusicState.BUILDING,
+            'stateIntense': MusicState.INTENSE,
+            'stateVictory': MusicState.VICTORY,
+            'stateDefeat': MusicState.DEFEAT
+        };
+
+        Object.entries(stateButtons).forEach(([buttonId, state]) => {
+            document.getElementById(buttonId).addEventListener('click', async () => {
+                const intensity = document.getElementById('intensitySlider').value / 100;
+                try {
+                    await audioSystem.transitionToMusicState(state, intensity);
+                    updateStatus('musicStatus', `Transitioned to ${state} state (${(intensity * 100).toFixed(0)}%)`, 'success');
+                    updateStats();
+                } catch (error) {
+                    console.error('Failed to transition state:', error);
+                    updateStatus('musicStatus', `Failed to transition: ${error.message}`, 'error');
+                }
+            });
+        });
+
+        // Intensity slider
+        document.getElementById('intensitySlider').addEventListener('input', (e) => {
+            const value = e.target.value;
+            document.getElementById('intensityValue').textContent = value + '%';
+            
+            if (audioSystem) {
+                const intensity = value / 100;
+                audioSystem.setMusicIntensity(intensity);
+                updateStats();
+            }
+        });
+
+        // Game event simulation
+        document.getElementById('simulateLineClear').addEventListener('click', () => {
+            if (mockGameLogic) {
+                mockGameLogic.emit('game:lineClear', {
+                    linesCleared: Math.floor(Math.random() * 4) + 1,
+                    score: 1000
+                });
+                updateStatus('musicStatus', 'Simulated line clear event', 'info');
+            }
+        });
+
+        document.getElementById('simulateRuleCreated').addEventListener('click', () => {
+            if (mockRuleEngine) {
+                const rules = ['BABA IS YOU', 'WALL IS STOP', 'ROCK IS PUSH', 'FLAG IS WIN'];
+                const rule = rules[Math.floor(Math.random() * rules.length)];
+                const [noun, , property] = rule.split(' ');
+                
+                mockRuleEngine.emit('rule:created', {
+                    rule: {
+                        id: Date.now(),
+                        noun,
+                        property,
+                        active: true,
+                        priority: Math.random() * 100,
+                        source: 'user'
+                    }
+                });
+                updateStatus('musicStatus', `Simulated rule: ${rule}`, 'info');
+            }
+        });
+
+        document.getElementById('simulateSpellEffect').addEventListener('click', () => {
+            if (mockGameLogic) {
+                const spells = ['BOMB', 'LIGHTNING', 'HEAL', 'TELEPORT', 'MULTIPLY'];
+                const spell = spells[Math.floor(Math.random() * spells.length)];
+                
+                mockGameLogic.emit('game:spellEffect', {
+                    spellName: spell,
+                    intensity: Math.random() * 0.8 + 0.2,
+                    position: { x: 5, y: 5 },
+                    isComboEffect: Math.random() > 0.7
+                });
+                updateStatus('musicStatus', `Simulated spell: ${spell}`, 'info');
+            }
+        });
+
+        document.getElementById('simulateConflict').addEventListener('click', () => {
+            if (mockRuleEngine) {
+                mockRuleEngine.emit('rule:conflict', {
+                    conflict: {
+                        noun: 'BABA',
+                        resolution: 'priority',
+                        conflictingRules: [
+                            { property: 'YOU' },
+                            { property: 'STOP' }
+                        ]
+                    }
+                });
+                updateStatus('musicStatus', 'Simulated rule conflict', 'info');
+            }
+        });
+
+        document.getElementById('refreshStats').addEventListener('click', updateStats);
+
+        // Auto-refresh stats every 2 seconds
+        setInterval(updateStats, 2000);
+
+        console.log('🎵 Adaptive Music Integration Test ready!');
+    </script>
+</body>
+</html>

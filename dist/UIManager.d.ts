@@ -1,5 +1,6 @@
 import { GameState } from './types.js';
 import { GameConfig } from './GameConfig.js';
+import { EffectManager } from './EffectManager.js';
 export declare class UIManager {
     private activeRulesElement;
     private ruleMatrixElement;
@@ -12,7 +13,8 @@ export declare class UIManager {
     private visualLegendElement;
     private effectSettingsCallback?;
     private currentConfig?;
-    constructor();
+    private effectManager?;
+    constructor(effectManager?: EffectManager);
     setEffectSettingsCallback(callback: (config: Partial<GameConfig>) => void): void;
     private setupOverlaySettings;
     private updateDifficultyButtonStyles;
@@ -29,6 +31,8 @@ export declare class UIManager {
     private hideOverlay;
     hideGameOver(): void;
     updateScore(score: number, level: number, linesCleared: number): void;
+    updateDifficultyDisplay(difficultyState: any): void;
+    private getDifficultyColor;
     showRuleChangeAnimation(ruleChange: string): void;
     private updateNextPiecePreview;
     private updateVisualLegend;

@@ -135,6 +135,22 @@ RuleEffects.PROPERTY_EFFECTS = {
         },
         visualEffect: () => ({ glow: true, animation: 'birth', opacity: 1.0 })
     },
+    'SINK': {
+        name: 'SINK',
+        description: 'Blocks fall down and disappear when placed',
+        applyToPhysics: (block, gameState) => {
+            return { shouldFall: true, shouldDestroy: true };
+        },
+        visualEffect: () => ({ glow: true, animation: 'sink', opacity: 0.8 })
+    },
+    'FLOAT': {
+        name: 'FLOAT',
+        description: 'Blocks rise up and float away when placed',
+        applyToPhysics: (block, gameState) => {
+            return { shouldFall: false, shouldDestroy: true };
+        },
+        visualEffect: () => ({ glow: true, animation: 'float', opacity: 0.9 })
+    },
     // Transformation Spells
     'TRANSFORM': {
         name: 'TRANSFORM',

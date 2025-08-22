@@ -1,5 +1,7 @@
 import { GameConfig } from './GameConfig.js';
 import { AudioSystem } from './AudioSystem.js';
+import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
+import { DifficultyScaler } from './DifficultyScaler.js';
 export declare class Game {
     private canvas;
     private renderer;
@@ -14,10 +16,20 @@ export declare class Game {
     private lastTime;
     private fps;
     private frameTime;
+    private performanceMonitor;
+    private difficultyScaler;
     private isRunning;
     private isPaused;
     private gameState;
     constructor(canvas: HTMLCanvasElement, config?: GameConfig);
+    /**
+     * Set up performance monitoring and auto-adjustment
+     */
+    private setupPerformanceMonitoring;
+    /**
+     * Apply quality preset to effect intensity
+     */
+    private applyQualityPreset;
     /**
      * Load and apply a new configuration
      */
@@ -30,6 +42,14 @@ export declare class Game {
      * Get audio system for external control
      */
     getAudioSystem(): AudioSystem;
+    /**
+     * Get performance monitor for testing and metrics
+     */
+    getPerformanceMonitor(): PerformanceMonitor;
+    /**
+     * Get difficulty scaler for testing and metrics
+     */
+    getDifficultyScaler(): DifficultyScaler;
     /**
      * Update effect settings in real-time
      */

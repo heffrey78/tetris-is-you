@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Integration Test</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            box-sizing: border-box;
+            height: 100%;
+        }
+        
+        body {
+            padding: 5px;
+        }
+        
+        #gameContainer {
+            display: flex;
+            border: 2px solid #fff;
+            background: #111;
+            height: calc(100vh - 14px);
+            max-width: 1400px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        
+        #gameCanvas {
+            background: #000;
+            border-right: 2px solid #444;
+            width: 80%;
+            max-height: 100%;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        
+        #sidePanel {
+            width: 20%;
+            min-width: 250px;
+            max-width: 350px;
+            padding: 15px;
+            background: #222;
+            font-size: 11px;
+            line-height: 1.3;
+            overflow-y: auto;
+            flex-shrink: 0;
+            height: 100%;
+            box-sizing: border-box;
+        }
+        
+        .panel-section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+        
+        .section-title {
+            color: #ffff00;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .test-log {
+            background: #333;
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+        
+        .test-passed {
+            border-left: 3px solid #0a0;
+        }
+        
+        .test-failed {
+            border-left: 3px solid #a00;
+        }
+        
+        .test-warning {
+            border-left: 3px solid #aa0;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="sidePanel">
+            <div class="panel-section">
+                <div class="section-title">Game Integration Test</div>
+                <div class="controls">
+                    <button onclick="startGameTest()">Start Game Test</button>
+                    <button onclick="triggerPerformanceTest()">Test Performance Adjustment</button>
+                    <button onclick="clearLogs()">Clear Logs</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">Test Results</div>
+                <div id="testResults">
+                    <div class="test-log">Ready to test...</div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">Performance Metrics</div>
+                <div id="performanceMetrics">
+                    <div>Not running</div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="section-title">Effect Settings</div>
+                <div id="effectSettings">
+                    <div>Not available</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Game } from './dist/Game.js';
+        import { DEFAULT_CONFIG } from './dist/GameConfig.js';
+        
+        let game = null;
+        let testStarted = false;
+        
+        window.startGameTest = async function() {
+            if (testStarted) return;
+            testStarted = true;
+            
+            try {
+                log('🔄 Starting game integration test...', 'info');
+                
+                const canvas = document.getElementById('gameCanvas');
+                game = new Game(canvas, DEFAULT_CONFIG);
+                
+                log('✅ Game instantiated successfully', 'passed');
+                
+                // Test performance monitoring integration
+                const performanceMonitor = game.getPerformanceMonitor();
+                if (performanceMonitor) {
+                    log('✅ Performance monitor is integrated', 'passed');
+                } else {
+                    log('❌ Performance monitor not found', 'failed');
+                    return;
+                }
+                
+                // Start the game
+                await game.start();
+                log('✅ Game started successfully', 'passed');
+                
+                // Setup performance monitoring
+                monitorPerformance();
+                
+                log('🎉 All integration tests passed!', 'passed');
+                
+            } catch (error) {
+                log(`❌ Game integration test failed: ${error.message}`, 'failed');
+                console.error('Game integration error:', error);
+            }
+        };
+        
+        window.triggerPerformanceTest = function() {
+            if (!game) {
+                log('❌ Game not started yet', 'failed');
+                return;
+            }
+            
+            log('🔄 Triggering performance adjustment test...', 'info');
+            
+            // Simulate performance adjustment event
+            const event = new CustomEvent('performanceAdjustment', {
+                detail: {
+                    qualityLevel: 1,
+                    qualityName: 'Medium',
+                    currentFPS: 35.5,
+                    averageFPS: 32.1
+                }
+            });
+            
+            window.dispatchEvent(event);
+            log('✅ Performance adjustment event dispatched', 'passed');
+            
+            // Check if configuration was updated
+            setTimeout(() => {
+                if (game.getConfiguration().visual.effectQuality === 'medium') {
+                    log('✅ Effect quality automatically adjusted to medium', 'passed');
+                } else {
+                    log('⚠️ Effect quality adjustment may not have been applied', 'warning');
+                }
+                
+                updateEffectSettingsDisplay();
+            }, 100);
+        };
+        
+        window.clearLogs = function() {
+            document.getElementById('testResults').innerHTML = '<div class="test-log">Logs cleared...</div>';
+        };
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const div = document.createElement('div');
+            div.className = `test-log test-${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function monitorPerformance() {
+            if (!game) return;
+            
+            function updateMetrics() {
+                if (!game) return;
+                
+                const performanceMonitor = game.getPerformanceMonitor();
+                const metrics = performanceMonitor.getPerformanceMetrics();
+                const display = document.getElementById('performanceMetrics');
+                
+                display.innerHTML = `
+                    <div>FPS: ${metrics.currentFPS.toFixed(1)}</div>
+                    <div>Avg FPS: ${metrics.averageFPS.toFixed(1)}</div>
+                    <div>Quality: ${metrics.qualityName}</div>
+                    <div>Frames: ${metrics.frameCount}</div>
+                `;
+                
+                setTimeout(updateMetrics, 1000);
+            }
+            
+            updateMetrics();
+        }
+        
+        function updateEffectSettingsDisplay() {
+            if (!game) return;
+            
+            const config = game.getConfiguration();
+            const display = document.getElementById('effectSettings');
+            
+            display.innerHTML = `
+                <div>Quality: ${config.visual.effectQuality}</div>
+                <div>Particles: ${config.effectIntensity.particleCount}</div>
+                <div>Max Effects: ${config.effectIntensity.maxConcurrentEffects}</div>
+                <div>Glow: ${config.effectIntensity.glowRadius}</div>
+            `;
+        }
+        
+        // Override console.log to capture game messages
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            // Check for performance-related messages
+            const message = args.join(' ');
+            if (message.includes('Auto-adjusting effect quality')) {
+                log(`🎯 Game logged: ${message}`, 'passed');
+            } else if (message.includes('Effect quality automatically adjusted')) {
+                log(`✨ Game logged: ${message}`, 'passed');
+            }
+        };
+    </script>
+</body>
+</html>

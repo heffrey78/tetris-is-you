@@ -11,6 +11,10 @@ import { TeleportEffect } from './effects/TeleportEffect.js';
 import { MagnetEffect } from './effects/MagnetEffect.js';
 import { TransformEffect } from './effects/TransformEffect.js';
 import { HealEffect } from './effects/HealEffect.js';
+import { RuleChangeEffect } from './effects/RuleChangeEffect.js';
+import { SinkEffect } from './effects/SinkEffect.js';
+import { FloatEffect } from './effects/FloatEffect.js';
+import { RulePreviewEffect } from './effects/RulePreviewEffect.js';
 export interface Particle {
     x: number;
     y: number;
@@ -19,13 +23,17 @@ export interface Particle {
     draw(ctx: CanvasRenderingContext2D): void;
     isDead(): boolean;
 }
-export type EffectType = 'acid_drip' | 'flame' | 'crumbling_brick' | 'explosion' | 'freeze' | 'lightning' | 'big_explosion_combo' | 'fairy_dust_combo' | 'lightning_storm_combo' | 'lightning_bolt' | 'multiply' | 'teleport' | 'magnet' | 'transform' | 'heal';
+export type EffectType = 'acid_drip' | 'flame' | 'crumbling_brick' | 'explosion' | 'freeze' | 'lightning' | 'big_explosion_combo' | 'fairy_dust_combo' | 'lightning_storm_combo' | 'lightning_bolt' | 'multiply' | 'teleport' | 'magnet' | 'transform' | 'heal' | 'rule_change' | 'sink' | 'float' | 'rule_preview';
 export interface EffectConfig {
     type: EffectType;
     gridPosition: Position;
     intensity?: number;
     duration?: number;
     autoRemove?: boolean;
+    ruleText?: string;
+    blockPositions?: Position[];
+    potentialRule?: string;
+    previewConfidence?: number;
 }
 export interface ActiveEffect {
     id: string;
@@ -48,6 +56,10 @@ export interface ActiveEffect {
     magnet?: MagnetEffect;
     transform?: TransformEffect;
     heal?: HealEffect;
+    ruleChange?: RuleChangeEffect;
+    sink?: SinkEffect;
+    float?: FloatEffect;
+    rulePreview?: RulePreviewEffect;
 }
 export declare class EffectManager {
     private canvas;

@@ -1,6 +1,7 @@
 import { EFFECT_QUALITY_PRESETS } from './GameConfig.js';
 export class UIManager {
-    constructor() {
+    constructor(effectManager) {
+        this.effectManager = effectManager;
         this.activeRulesElement = document.getElementById('activeRules');
         this.ruleMatrixElement = document.getElementById('ruleMatrix');
         this.wordQueueElement = document.getElementById('wordQueue');
@@ -352,41 +353,93 @@ export class UIManager {
         this.currentLevelElement.textContent = level.toString();
         this.linesClearedElement.textContent = linesCleared.toString();
     }
+    updateDifficultyDisplay(difficultyState) {
+        if (!difficultyState)
+            return;
+        // Update difficulty indicator in the score section
+        let difficultyElement = document.getElementById('currentDifficulty');
+        if (!difficultyElement) {
+            // Create difficulty element if it doesn't exist
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            if (scoreDisplay) {
+                const difficultyDiv = document.createElement('div');
+                difficultyDiv.className = 'score-item';
+                difficultyDiv.innerHTML = 'Difficulty: <span id="currentDifficulty">Beginner</span>';
+                scoreDisplay.appendChild(difficultyDiv);
+                difficultyElement = document.getElementById('currentDifficulty');
+            }
+        }
+        if (difficultyElement) {
+            difficultyElement.textContent = difficultyState.difficultyName;
+            // Add color coding based on difficulty
+            difficultyElement.style.color = this.getDifficultyColor(difficultyState.difficultyName);
+            // Update tooltip with detailed info
+            const tooltip = `Speed: ${difficultyState.speedMultiplier.toFixed(1)}x | Chaos: ${difficultyState.chaosLevel} | Mode: ${difficultyState.scalingMode}`;
+            difficultyElement.title = tooltip;
+        }
+    }
+    getDifficultyColor(difficultyName) {
+        switch (difficultyName.toLowerCase()) {
+            case 'beginner':
+            case 'stable': return '#00ff00';
+            case 'intermediate':
+            case 'chaotic': return '#ffff00';
+            case 'advanced':
+            case 'pandemonium': return '#ff8800';
+            case 'expert':
+            case 'apocalypse': return '#ff4400';
+            case 'master': return '#ff0000';
+            case 'legendary': return '#ff00ff';
+            default: return '#ffffff';
+        }
+    }
     showRuleChangeAnimation(ruleChange) {
-        // Create a temporary notification for rule changes
-        const notification = document.createElement('div');
-        notification.style.position = 'fixed';
-        notification.style.top = '20px';
-        notification.style.right = '20px';
-        notification.style.backgroundColor = 'rgba(255, 255, 0, 0.9)';
-        notification.style.color = '#000';
-        notification.style.padding = '10px';
-        notification.style.border = '2px solid #fff';
-        notification.style.borderRadius = '5px';
-        notification.style.zIndex = '1000';
-        notification.style.animation = 'fadeInOut 3s ease-in-out';
-        notification.textContent = `RULE CHANGE: ${ruleChange}`;
-        // Add CSS animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeInOut {
-                0% { opacity: 0; transform: translateX(100px); }
-                20% { opacity: 1; transform: translateX(0); }
-                80% { opacity: 1; transform: translateX(0); }
-                100% { opacity: 0; transform: translateX(-100px); }
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(notification);
-        // Remove after animation
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
-            }
-            if (document.head.contains(style)) {
-                document.head.removeChild(style);
-            }
-        }, 3000);
+        // Use canvas-based rule change effect if available
+        if (this.effectManager) {
+            this.effectManager.addEffect({
+                type: 'rule_change',
+                gridPosition: { x: 0, y: 0 }, // Not used by rule change effect
+                ruleText: `RULE CHANGE:\n${ruleChange}`,
+                duration: 3000,
+                autoRemove: true
+            });
+        }
+        else {
+            // Fallback to DOM-based notification if no effect manager
+            const notification = document.createElement('div');
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.backgroundColor = 'rgba(255, 255, 0, 0.9)';
+            notification.style.color = '#000';
+            notification.style.padding = '10px';
+            notification.style.border = '2px solid #fff';
+            notification.style.borderRadius = '5px';
+            notification.style.zIndex = '1000';
+            notification.style.animation = 'fadeInOut 3s ease-in-out';
+            notification.textContent = `RULE CHANGE: ${ruleChange}`;
+            // Add CSS animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateX(100px); }
+                    20% { opacity: 1; transform: translateX(0); }
+                    80% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(-100px); }
+                }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(notification);
+            // Remove after animation
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+                if (document.head.contains(style)) {
+                    document.head.removeChild(style);
+                }
+            }, 3000);
+        }
     }
     updateNextPiecePreview(nextPiece, rules = []) {
         // Clear the canvas

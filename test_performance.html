@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Monitor Test</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        #controls {
+            margin-bottom: 20px;
+        }
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #metrics {
+            background: #222;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #666;
+        }
+        #logs {
+            background: #111;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #666;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Performance Monitor Test</h1>
+    
+    <div id="controls">
+        <button onclick="startTest()">Start Test</button>
+        <button onclick="simulateLoad()">Simulate Heavy Load</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <div id="metrics">
+        <h3>Performance Metrics</h3>
+        <div id="metricsDisplay">Not started</div>
+    </div>
+    
+    <div id="logs">
+        <h3>Event Logs</h3>
+        <div id="logDisplay">Waiting for events...</div>
+    </div>
+
+    <script type="module">
+        import { PerformanceMonitor } from './dist/utils/PerformanceMonitor.js';
+        
+        let monitor = null;
+        let isRunning = false;
+        let loadSimulation = false;
+        
+        window.startTest = function() {
+            if (isRunning) return;
+            
+            monitor = new PerformanceMonitor();
+            isRunning = true;
+            
+            // Listen for performance adjustment events
+            window.addEventListener('performanceAdjustment', (event) => {
+                const customEvent = event;
+                const { qualityLevel, qualityName, currentFPS, averageFPS } = customEvent.detail;
+                
+                log(`🎯 Auto-adjustment: ${qualityName} (FPS: ${averageFPS.toFixed(1)})`);
+            });
+            
+            // Start the monitoring loop
+            function loop(currentTime) {
+                if (!isRunning) return;
+                
+                monitor.update(currentTime);
+                updateMetricsDisplay();
+                
+                // Simulate heavy load if requested
+                if (loadSimulation) {
+                    // Burn CPU cycles to simulate low performance
+                    const start = performance.now();
+                    while (performance.now() - start < 50) {
+                        // Busy wait
+                    }
+                }
+                
+                requestAnimationFrame(loop);
+            }
+            
+            requestAnimationFrame(loop);
+            log('✅ Performance monitoring started');
+        };
+        
+        window.simulateLoad = function() {
+            loadSimulation = !loadSimulation;
+            log(loadSimulation ? '🔥 Heavy load simulation ON' : '✅ Heavy load simulation OFF');
+        };
+        
+        window.clearLogs = function() {
+            document.getElementById('logDisplay').innerHTML = '';
+        };
+        
+        function updateMetricsDisplay() {
+            if (!monitor) return;
+            
+            const metrics = monitor.getPerformanceMetrics();
+            const display = document.getElementById('metricsDisplay');
+            
+            display.innerHTML = `
+                <strong>Current FPS:</strong> ${metrics.currentFPS.toFixed(1)}<br>
+                <strong>Average FPS:</strong> ${metrics.averageFPS.toFixed(1)}<br>
+                <strong>Min FPS:</strong> ${metrics.minFPS.toFixed(1)}<br>
+                <strong>Max FPS:</strong> ${metrics.maxFPS.toFixed(1)}<br>
+                <strong>Quality Level:</strong> ${metrics.qualityName} (${metrics.qualityLevel})<br>
+                <strong>Frame Count:</strong> ${metrics.frameCount}<br>
+                <strong>Memory Used:</strong> ${metrics.memoryUsage.usedJSHeapSize.toFixed(1)} MB
+            `;
+        }
+        
+        function log(message) {
+            const logDisplay = document.getElementById('logDisplay');
+            const timestamp = new Date().toLocaleTimeString();
+            logDisplay.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDisplay.scrollTop = logDisplay.scrollHeight;
+        }
+    </script>
+</body>
+</html>

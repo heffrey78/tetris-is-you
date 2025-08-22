@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quality Changes Validation</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #666;
+            background: #222;
+        }
+        .passed { border-left-color: #0a0; }
+        .failed { border-left-color: #a00; }
+        .warning { border-left-color: #aa0; }
+        .config-display {
+            background: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        button {
+            background: #555;
+            color: #fff;
+            border: 1px solid #777;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quality Changes Validation</h1>
+    
+    <div>
+        <button onclick="runTest()">Run Validation Test</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <div class="config-display">
+        <h3>Current Configuration:</h3>
+        <div id="configDisplay">Not loaded</div>
+    </div>
+
+    <script type="module">
+        import { Game } from './dist/Game.js';
+        import { DEFAULT_CONFIG } from './dist/GameConfig.js';
+        
+        let game = null;
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function updateConfigDisplay() {
+            if (!game) return;
+            
+            const config = game.getConfiguration();
+            const display = document.getElementById('configDisplay');
+            
+            display.innerHTML = `
+                <strong>Visual Quality:</strong> ${config.visual.effectQuality}<br>
+                <strong>Particle Count:</strong> ${config.effectIntensity.particleCount}<br>
+                <strong>Max Concurrent Effects:</strong> ${config.effectIntensity.maxConcurrentEffects}<br>
+                <strong>Lightning Complexity:</strong> ${config.effectIntensity.lightningComplexity}<br>
+                <strong>Explosion Radius:</strong> ${config.effectIntensity.explosionRadius}<br>
+                <strong>Glow Radius:</strong> ${config.effectIntensity.glowRadius}<br>
+                <strong>Animation Duration:</strong> ${config.effectIntensity.animationDuration}
+            `;
+        }
+        
+        window.runTest = async function() {
+            log('🔍 Starting quality changes validation...', 'info');
+            
+            try {
+                // Create game instance
+                const canvas = document.createElement('canvas');
+                canvas.width = 800;
+                canvas.height = 600;
+                
+                game = new Game(canvas, DEFAULT_CONFIG);
+                log('✅ Game instance created successfully', 'passed');
+                
+                // Test initial configuration
+                const initialConfig = game.getConfiguration();
+                log(`✅ Initial quality: ${initialConfig.visual.effectQuality}`, 'passed');
+                updateConfigDisplay();
+                
+                // Test performance adjustment event handling
+                log('🔄 Testing performance adjustment event handling...', 'info');
+                
+                // Test 1: Simulate low performance (should reduce quality)
+                const lowPerfEvent = new CustomEvent('performanceAdjustment', {
+                    detail: {
+                        qualityLevel: 1,
+                        qualityName: 'Medium',
+                        currentFPS: 28.5,
+                        averageFPS: 25.3
+                    }
+                });
+                
+                window.dispatchEvent(lowPerfEvent);
+                
+                // Check if quality was adjusted
+                setTimeout(() => {
+                    const config1 = game.getConfiguration();
+                    if (config1.visual.effectQuality === 'medium') {
+                        log('✅ Quality correctly reduced to medium', 'passed');
+                    } else {
+                        log(`❌ Quality not changed (still ${config1.visual.effectQuality})`, 'failed');
+                    }
+                    
+                    // Check if effect intensity was updated
+                    if (config1.effectIntensity.particleCount === 0.7) {
+                        log('✅ Particle count correctly adjusted to 0.7', 'passed');
+                    } else {
+                        log(`❌ Particle count not adjusted (${config1.effectIntensity.particleCount})`, 'failed');
+                    }
+                    
+                    if (config1.effectIntensity.maxConcurrentEffects === 10) {
+                        log('✅ Max concurrent effects correctly adjusted to 10', 'passed');
+                    } else {
+                        log(`❌ Max concurrent effects not adjusted (${config1.effectIntensity.maxConcurrentEffects})`, 'failed');
+                    }
+                    
+                    updateConfigDisplay();
+                    
+                    // Test 2: Simulate critical performance (should reduce to low)
+                    log('🔄 Testing critical performance adjustment...', 'info');
+                    
+                    const criticalPerfEvent = new CustomEvent('performanceAdjustment', {
+                        detail: {
+                            qualityLevel: 0,
+                            qualityName: 'Low',
+                            currentFPS: 15.2,
+                            averageFPS: 18.7
+                        }
+                    });
+                    
+                    window.dispatchEvent(criticalPerfEvent);
+                    
+                    setTimeout(() => {
+                        const config2 = game.getConfiguration();
+                        if (config2.visual.effectQuality === 'low') {
+                            log('✅ Quality correctly reduced to low', 'passed');
+                        } else {
+                            log(`❌ Quality not changed to low (still ${config2.visual.effectQuality})`, 'failed');
+                        }
+                        
+                        if (config2.effectIntensity.particleCount === 0.3) {
+                            log('✅ Particle count correctly adjusted to 0.3', 'passed');
+                        } else {
+                            log(`❌ Particle count not adjusted (${config2.effectIntensity.particleCount})`, 'failed');
+                        }
+                        
+                        updateConfigDisplay();
+                        
+                        // Test 3: Simulate good performance (should increase quality)
+                        log('🔄 Testing performance recovery...', 'info');
+                        
+                        const goodPerfEvent = new CustomEvent('performanceAdjustment', {
+                            detail: {
+                                qualityLevel: 3,
+                                qualityName: 'Ultra',
+                                currentFPS: 58.9,
+                                averageFPS: 56.4
+                            }
+                        });
+                        
+                        window.dispatchEvent(goodPerfEvent);
+                        
+                        setTimeout(() => {
+                            const config3 = game.getConfiguration();
+                            if (config3.visual.effectQuality === 'ultra') {
+                                log('✅ Quality correctly increased to ultra', 'passed');
+                            } else {
+                                log(`❌ Quality not changed to ultra (still ${config3.visual.effectQuality})`, 'failed');
+                            }
+                            
+                            if (config3.effectIntensity.particleCount === 1.5) {
+                                log('✅ Particle count correctly adjusted to 1.5', 'passed');
+                            } else {
+                                log(`❌ Particle count not adjusted (${config3.effectIntensity.particleCount})`, 'failed');
+                            }
+                            
+                            updateConfigDisplay();
+                            
+                            log('🎉 All quality adjustment tests completed!', 'passed');
+                            
+                        }, 100);
+                    }, 100);
+                }, 100);
+                
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'failed');
+                console.error('Validation error:', error);
+            }
+        };
+        
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+        };
+    </script>
+</body>
+</html>

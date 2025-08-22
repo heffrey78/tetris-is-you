@@ -1,5 +1,6 @@
 import { RuleConflictResolver, EffectThrottleManager } from './RuleConflictResolver.js';
 import { DEFAULT_CONFIG } from './GameConfig.js';
+import { EventEmitter } from './EventEmitter.js';
 export class RuleEngine {
     constructor(logger, config = DEFAULT_CONFIG) {
         this.rules = new Map();
@@ -15,10 +16,38 @@ export class RuleEngine {
         };
         this.logger = logger;
         this.config = config;
+        this.eventEmitter = new EventEmitter(false); // Debug mode off by default
         this.initializeBasicRules();
     }
     setLogger(logger) {
         this.logger = logger;
+    }
+    /**
+     * Get the EventEmitter instance for external event subscription
+     */
+    getEventEmitter() {
+        return this.eventEmitter;
+    }
+    /**
+     * Subscribe to rule engine events
+     */
+    on(event, listener) {
+        this.eventEmitter.on(event, listener);
+        return this;
+    }
+    /**
+     * Subscribe to rule engine events (one-time)
+     */
+    once(event, listener) {
+        this.eventEmitter.once(event, listener);
+        return this;
+    }
+    /**
+     * Unsubscribe from rule engine events
+     */
+    off(event, listener) {
+        this.eventEmitter.off(event, listener);
+        return this;
     }
     initializeBasicRules() {
         // Load rules from configuration
@@ -46,6 +75,18 @@ export class RuleEngine {
         const message = `Added rule: [${noun}] IS [${property}] (Priority: ${priority}, Source: ${source})`;
         console.log(message);
         this.logger?.logRuleChange('ADD', { noun, property }, { priority, source, ruleId: id });
+        // Emit rule created event
+        this.eventEmitter.emit('rule:created', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            rule: {
+                id,
+                noun: noun.toUpperCase(),
+                property: property.toUpperCase(),
+                priority,
+                source
+            }
+        });
         return id;
     }
     modifyRuleProperty(ruleId, newProperty) {
@@ -62,6 +103,17 @@ export class RuleEngine {
             oldProperty,
             ruleId
         });
+        // Emit rule modified event
+        this.eventEmitter.emit('rule:modified', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            ruleId,
+            changes: {
+                oldValue: oldProperty,
+                newValue: newProperty.toUpperCase(),
+                field: 'property'
+            }
+        });
         return true;
     }
     modifyRuleNoun(ruleId, newNoun) {
@@ -77,6 +129,17 @@ export class RuleEngine {
         this.logger?.logRuleChange('MODIFY_NOUN', { noun: newNoun, property: rule.property }, {
             oldNoun,
             ruleId
+        });
+        // Emit rule modified event
+        this.eventEmitter.emit('rule:modified', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            ruleId,
+            changes: {
+                oldValue: oldNoun,
+                newValue: newNoun.toUpperCase(),
+                field: 'noun'
+            }
         });
         return true;
     }
@@ -114,6 +177,24 @@ export class RuleEngine {
         }
         // Log the conflict resolution
         this.logger?.logRuleConflict('RULE_CONFLICT', conflict.conflictingRules, conflict.resolution);
+        // Emit rule conflict event
+        this.eventEmitter.emit('rule:conflict', {
+            timestamp: Date.now(),
+            source: 'RuleEngine',
+            conflict: {
+                noun: conflict.noun,
+                conflictingRules: conflict.conflictingRules.map(rule => ({
+                    id: rule.id,
+                    property: rule.property,
+                    priority: rule.priority
+                })),
+                resolution: conflict.resolution,
+                resolvedRule: resolvedRule ? {
+                    id: resolvedRule.id,
+                    property: resolvedRule.property
+                } : undefined
+            }
+        });
         // Track the conflict for UI display
         this.ruleConflicts.push(conflict);
     }

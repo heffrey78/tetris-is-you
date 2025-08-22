@@ -11,6 +11,10 @@ import { TeleportEffect } from './effects/TeleportEffect.js';
 import { MagnetEffect } from './effects/MagnetEffect.js';
 import { TransformEffect } from './effects/TransformEffect.js';
 import { HealEffect } from './effects/HealEffect.js';
+import { RuleChangeEffect } from './effects/RuleChangeEffect.js';
+import { SinkEffect } from './effects/SinkEffect.js';
+import { FloatEffect } from './effects/FloatEffect.js';
+import { RulePreviewEffect } from './effects/RulePreviewEffect.js';
 export class EffectManager {
     constructor(canvas) {
         this.effects = new Map();
@@ -146,6 +150,28 @@ export class EffectManager {
                 autoRemove: config.autoRemove !== undefined ? config.autoRemove : true
             });
         }
+        else if (config.type === 'rule_change') {
+            effect.ruleChange = new RuleChangeEffect(this.canvas, this.ctx, config.ruleText || 'RULE CHANGE');
+        }
+        else if (config.type === 'sink') {
+            effect.sink = new SinkEffect(this.canvas, this.ctx, {
+                gridPosition: config.gridPosition,
+                intensity: config.intensity || 1.0,
+                duration: config.duration || 2000,
+                autoRemove: config.autoRemove !== undefined ? config.autoRemove : true
+            });
+        }
+        else if (config.type === 'float') {
+            effect.float = new FloatEffect(this.canvas, this.ctx, {
+                gridPosition: config.gridPosition,
+                intensity: config.intensity || 1.0,
+                duration: config.duration || 2000,
+                autoRemove: config.autoRemove !== undefined ? config.autoRemove : true
+            });
+        }
+        else if (config.type === 'rule_preview') {
+            effect.rulePreview = new RulePreviewEffect(this.canvas, this.ctx, config.blockPositions || [], config.potentialRule || 'UNKNOWN RULE', config.previewConfidence || 0.8);
+        }
         this.effects.set(effectId, effect);
         return effectId;
     }
@@ -217,6 +243,18 @@ export class EffectManager {
                 if (effect.heal) {
                     isFinished = effect.heal.isFinished();
                 }
+                if (effect.ruleChange) {
+                    isFinished = effect.ruleChange.isFinished();
+                }
+                if (effect.sink) {
+                    isFinished = effect.sink.isFinished();
+                }
+                if (effect.float) {
+                    isFinished = effect.float.isFinished();
+                }
+                if (effect.rulePreview) {
+                    isFinished = effect.rulePreview.isFinished();
+                }
                 if (isFinished) {
                     // Cleanup all effects
                     if (effect.crumblingBrick) {
@@ -248,6 +286,18 @@ export class EffectManager {
                     }
                     if (effect.heal) {
                         effect.heal.cleanup();
+                    }
+                    if (effect.ruleChange) {
+                        effect.ruleChange.cleanup();
+                    }
+                    if (effect.sink) {
+                        effect.sink.cleanup();
+                    }
+                    if (effect.float) {
+                        effect.float.cleanup();
+                    }
+                    if (effect.rulePreview) {
+                        effect.rulePreview.cleanup();
                     }
                     this.effects.delete(id);
                 }
@@ -317,6 +367,18 @@ export class EffectManager {
         if (effect.heal) {
             effect.heal.update(deltaTime);
         }
+        if (effect.ruleChange) {
+            effect.ruleChange.update(deltaTime);
+        }
+        if (effect.sink) {
+            effect.sink.update(deltaTime);
+        }
+        if (effect.float) {
+            effect.float.update(deltaTime);
+        }
+        if (effect.rulePreview) {
+            effect.rulePreview.update(deltaTime);
+        }
         // Create new particles if effect is active
         if (effect.active && effect.elapsed < effect.duration) {
             this.createParticles(effect);
@@ -374,6 +436,18 @@ export class EffectManager {
         if (effect.heal) {
             effect.heal.render();
         }
+        if (effect.ruleChange) {
+            effect.ruleChange.render();
+        }
+        if (effect.sink) {
+            effect.sink.render();
+        }
+        if (effect.float) {
+            effect.float.render();
+        }
+        if (effect.rulePreview) {
+            effect.rulePreview.render();
+        }
         // Render particles on top
         for (const particle of effect.particles) {
             particle.draw(this.ctx);
@@ -405,6 +479,10 @@ export class EffectManager {
             case 'magnet':
             case 'transform':
             case 'heal':
+            case 'rule_change':
+            case 'sink':
+            case 'float':
+            case 'rule_preview':
                 // Spell effects handle their own particles/rendering
                 break;
             case 'explosion':

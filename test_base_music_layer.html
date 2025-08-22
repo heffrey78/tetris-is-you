@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseMusicLayer Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .metrics {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #444;
+        }
+        .status.playing {
+            background: #2d5a2d;
+        }
+        .status.stopped {
+            background: #5a2d2d;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 BaseMusicLayer Test</h1>
+    
+    <div class="status" id="status">
+        Audio Context: Not initialized
+    </div>
+    
+    <div class="controls">
+        <h3>Layer Controls</h3>
+        <button onclick="initializeAudio()">Initialize Audio</button>
+        <button onclick="playLayer()" disabled id="playBtn">Play Layer</button>
+        <button onclick="stopLayer()" disabled id="stopBtn">Stop Layer</button>
+        <button onclick="fadeIn()" disabled id="fadeInBtn">Fade In (2s)</button>
+        <button onclick="fadeOut()" disabled id="fadeOutBtn">Fade Out (2s)</button>
+        <br>
+        <label>Volume: </label>
+        <input type="range" id="volumeSlider" min="0" max="100" value="50" onchange="setVolume(this.value)" disabled>
+        <span id="volumeDisplay">50%</span>
+    </div>
+    
+    <div class="controls">
+        <h3>State Testing</h3>
+        <button onclick="updateState('idle')" disabled class="stateBtn">IDLE State</button>
+        <button onclick="updateState('building')" disabled class="stateBtn">BUILDING State</button>
+        <button onclick="updateState('intense')" disabled class="stateBtn">INTENSE State</button>
+        <button onclick="updateState('victory')" disabled class="stateBtn">VICTORY State</button>
+        <button onclick="updateState('defeat')" disabled class="stateBtn">DEFEAT State</button>
+        <br>
+        <label>Intensity: </label>
+        <input type="range" id="intensitySlider" min="0" max="100" value="50" onchange="setIntensity(this.value)" disabled>
+        <span id="intensityDisplay">50%</span>
+    </div>
+    
+    <div class="metrics" id="metrics">
+        No metrics available
+    </div>
+    
+    <div class="controls">
+        <h3>Event Log</h3>
+        <div id="eventLog" style="height: 200px; overflow-y: scroll; background: #1a1a1a; padding: 10px; border-radius: 4px;">
+            Events will appear here...
+        </div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script type="module">
+        import { LayerType, MusicState } from './dist/types/MusicTypes.js';
+        import { BaseMusicLayer } from './dist/audio/BaseMusicLayer.js';
+        
+        // Test implementation of BaseMusicLayer
+        class TestMusicLayer extends BaseMusicLayer {
+            constructor(audioContext) {
+                super(
+                    'test-layer',
+                    LayerType.MELODY,
+                    [MusicState.IDLE, MusicState.BUILDING, MusicState.INTENSE],
+                    0.5,
+                    audioContext
+                );
+            }
+            
+            initializeLayer() {
+                console.log('Test layer initialized');
+                this.addEventListener((event) => {
+                    logEvent(`${event.type}: ${JSON.stringify(event.data || {})}`);
+                });
+            }
+            
+            generateNotes(intensity) {
+                // Generate a simple melody based on intensity
+                const baseFreq = 440; // A4
+                const notes = [];
+                const noteCount = Math.floor(4 + intensity * 8); // 4-12 notes based on intensity
+                const noteDuration = 0.5;
+                const melody = [1, 1.125, 1.25, 1.5, 1.875, 2, 1.5, 1]; // Simple melody ratios
+                
+                for (let i = 0; i < noteCount; i++) {
+                    const melodyIndex = i % melody.length;
+                    const frequency = baseFreq * melody[melodyIndex];
+                    const startTime = i * noteDuration;
+                    const velocity = 0.3 + intensity * 0.4; // Velocity based on intensity
+                    
+                    notes.push({
+                        frequency,
+                        startTime,
+                        duration: noteDuration * 0.8,
+                        velocity,
+                        envelope: {
+                            attack: 0.05,
+                            decay: 0.1,
+                            sustain: 0.6,
+                            release: 0.2
+                        }
+                    });
+                }
+                
+                return notes;
+            }
+        }
+        
+        let audioContext = null;
+        let testLayer = null;
+        let currentState = MusicState.IDLE;
+        let currentIntensity = 0.5;
+        
+        function logEvent(message) {
+            const eventLog = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            eventLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+        
+        function updateStatus(message, className = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${className}`;
+        }
+        
+        function updateMetrics() {
+            if (!testLayer) return;
+            
+            try {
+                const metrics = testLayer.getPerformanceMetrics();
+                const metricsDiv = document.getElementById('metrics');
+                metricsDiv.innerHTML = `
+                    <strong>Performance Metrics:</strong><br>
+                    Playing: ${testLayer.isPlaying}<br>
+                    Current Volume: ${(testLayer.currentVolume * 100).toFixed(1)}%<br>
+                    Is Fading: ${testLayer.isFading}<br>
+                    Active Oscillators: ${metrics.activeOscillators}<br>
+                    Active Gain Nodes: ${metrics.activeGainNodes}<br>
+                    Audio Context State: ${metrics.audioContextState}<br>
+                    Audio Latency: ${(metrics.audioLatency * 1000).toFixed(2)}ms<br>
+                    Current FPS: ${metrics.currentFPS.toFixed(1)}<br>
+                    Quality Level: ${metrics.qualityName}<br>
+                    Memory Usage: ${metrics.memoryUsage.usedJSHeapSize.toFixed(1)}MB
+                `;
+            } catch (error) {
+                document.getElementById('metrics').textContent = `Error getting metrics: ${error.message}`;
+            }
+        }
+        
+        function enableControls() {
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('fadeInBtn').disabled = false;
+            document.getElementById('fadeOutBtn').disabled = false;
+            document.getElementById('volumeSlider').disabled = false;
+            document.getElementById('intensitySlider').disabled = false;
+            document.querySelectorAll('.stateBtn').forEach(btn => btn.disabled = false);
+        }
+        
+        window.initializeAudio = async function() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                testLayer = new TestMusicLayer(audioContext);
+                
+                updateStatus('Audio Context: Initialized', 'stopped');
+                enableControls();
+                logEvent('Audio system initialized successfully');
+                
+                // Start metrics update loop
+                setInterval(updateMetrics, 500);
+                
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'stopped');
+                logEvent(`Failed to initialize audio: ${error.message}`);
+            }
+        };
+        
+        window.playLayer = async function() {
+            try {
+                await testLayer.play();
+                updateStatus('Layer: Playing', 'playing');
+                logEvent('Layer started playing');
+            } catch (error) {
+                logEvent(`Failed to play layer: ${error.message}`);
+            }
+        };
+        
+        window.stopLayer = async function() {
+            try {
+                await testLayer.stop();
+                updateStatus('Layer: Stopped', 'stopped');
+                logEvent('Layer stopped');
+            } catch (error) {
+                logEvent(`Failed to stop layer: ${error.message}`);
+            }
+        };
+        
+        window.fadeIn = async function() {
+            try {
+                await testLayer.play(2000);
+                updateStatus('Layer: Fading In', 'playing');
+                logEvent('Layer fading in (2 seconds)');
+            } catch (error) {
+                logEvent(`Failed to fade in: ${error.message}`);
+            }
+        };
+        
+        window.fadeOut = async function() {
+            try {
+                await testLayer.stop(2000);
+                updateStatus('Layer: Fading Out', 'stopped');
+                logEvent('Layer fading out (2 seconds)');
+            } catch (error) {
+                logEvent(`Failed to fade out: ${error.message}`);
+            }
+        };
+        
+        window.setVolume = async function(value) {
+            try {
+                const volume = value / 100;
+                await testLayer.setVolume(volume, 300);
+                document.getElementById('volumeDisplay').textContent = `${value}%`;
+                logEvent(`Volume set to ${value}%`);
+            } catch (error) {
+                logEvent(`Failed to set volume: ${error.message}`);
+            }
+        };
+        
+        window.updateState = async function(state) {
+            try {
+                currentState = state;
+                testLayer.updateForState(currentState, currentIntensity);
+                logEvent(`State updated to: ${state} (intensity: ${(currentIntensity * 100).toFixed(0)}%)`);
+            } catch (error) {
+                logEvent(`Failed to update state: ${error.message}`);
+            }
+        };
+        
+        window.setIntensity = async function(value) {
+            try {
+                currentIntensity = value / 100;
+                testLayer.updateForState(currentState, currentIntensity);
+                document.getElementById('intensityDisplay').textContent = `${value}%`;
+                logEvent(`Intensity set to ${value}%`);
+            } catch (error) {
+                logEvent(`Failed to set intensity: ${error.message}`);
+            }
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('eventLog').innerHTML = 'Events will appear here...';
+        };
+        
+        // Auto-initialize on first user interaction
+        document.addEventListener('click', function autoInit() {
+            if (!audioContext) {
+                document.removeEventListener('click', autoInit);
+                setTimeout(() => {
+                    if (!audioContext) {
+                        initializeAudio();
+                    }
+                }, 100);
+            }
+        }, { once: true });
+        
+    </script>
+</body>
+</html>

@@ -3,8 +3,8 @@
  * Demonstrates integration with the audio system and different usage patterns
  */
 
-import { BassLayer, BassPattern } from './BassLayer';
-import { MusicState } from '../types/MusicTypes';
+import { BassLayer, BassPattern } from './BassLayer.js';
+import { MusicState } from '../types/MusicTypes.js';
 
 /**
  * Example class showing BassLayer integration

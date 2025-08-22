@@ -8,6 +8,8 @@ import { ConfigLoader } from './ConfigLoader.js';
 import { DEFAULT_CONFIG } from './GameConfig.js';
 import { AudioSystem } from './AudioSystem.js';
 import { LAYOUT } from './types.js';
+import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
+import { DifficultyScaler } from './DifficultyScaler.js';
 export class Game {
     constructor(canvas, config = DEFAULT_CONFIG) {
         this.gameLoop = 0;
@@ -24,19 +26,64 @@ export class Game {
         this.audioSystem = new AudioSystem();
         this.ruleEngine = new RuleEngine(this.gameLogger, this.config);
         this.wordQueue = new WordQueue();
+        this.performanceMonitor = new PerformanceMonitor();
+        this.difficultyScaler = new DifficultyScaler(this.config, this.ruleEngine);
         this.setupCanvas();
         this.initializeGameState();
-        this.uiManager = new UIManager();
+        this.uiManager = new UIManager(this.renderer.getEffectManager());
         this.gameLogic = new GameLogic(this.gameState, this.ruleEngine, this.wordQueue, this.gameLogger);
         this.gameLogic.setUIManager(this.uiManager);
         this.gameLogic.setEffectManager(this.renderer.getEffectManager());
         this.gameLogic.setAudioSystem(this.audioSystem);
+        this.gameLogic.setDifficultyScaler(this.difficultyScaler);
         // Configure EffectManager with intensity settings
         this.renderer.getEffectManager().setConfig(this.config);
         // Set up effect settings callback
         this.uiManager.setEffectSettingsCallback((configUpdate) => this.updateEffectSettings(configUpdate));
         this.uiManager.updateEffectSettings(this.config);
+        // Set up performance monitoring auto-adjustment
+        this.setupPerformanceMonitoring();
         this.gameLogger.logInfo('GAME', 'Game initialized with enhanced rule engine and configuration');
+    }
+    /**
+     * Set up performance monitoring and auto-adjustment
+     */
+    setupPerformanceMonitoring() {
+        // Listen for performance adjustment events
+        window.addEventListener('performanceAdjustment', (event) => {
+            const customEvent = event;
+            const { qualityLevel, qualityName, currentFPS, averageFPS } = customEvent.detail;
+            console.log(`🎯 Auto-adjusting effect quality: ${qualityName} (FPS: ${averageFPS.toFixed(1)})`);
+            // Apply quality preset based on performance
+            const presets = ['low', 'medium', 'high', 'ultra'];
+            const presetName = presets[qualityLevel];
+            if (presetName && this.config.visual.effectQuality !== presetName) {
+                this.config.visual.effectQuality = presetName;
+                // Update effect intensity based on quality level
+                this.applyQualityPreset(presetName);
+                // Update UI to reflect changes
+                this.uiManager.updateEffectSettings(this.config);
+                console.log(`✨ Effect quality automatically adjusted to ${presetName}`);
+            }
+        });
+    }
+    /**
+     * Apply quality preset to effect intensity
+     */
+    applyQualityPreset(preset) {
+        const presets = {
+            low: { particleCount: 0.3, maxConcurrentEffects: 5 },
+            medium: { particleCount: 0.7, maxConcurrentEffects: 10 },
+            high: { particleCount: 1.0, maxConcurrentEffects: 15 },
+            ultra: { particleCount: 1.5, maxConcurrentEffects: 20 }
+        };
+        const presetConfig = presets[preset];
+        if (presetConfig) {
+            this.config.effectIntensity.particleCount = presetConfig.particleCount;
+            this.config.effectIntensity.maxConcurrentEffects = presetConfig.maxConcurrentEffects;
+            // Apply to EffectManager
+            this.renderer.getEffectManager().setConfig(this.config);
+        }
     }
     /**
      * Load and apply a new configuration
@@ -62,6 +109,18 @@ export class Game {
      */
     getAudioSystem() {
         return this.audioSystem;
+    }
+    /**
+     * Get performance monitor for testing and metrics
+     */
+    getPerformanceMonitor() {
+        return this.performanceMonitor;
+    }
+    /**
+     * Get difficulty scaler for testing and metrics
+     */
+    getDifficultyScaler() {
+        return this.difficultyScaler;
     }
     /**
      * Update effect settings in real-time
@@ -194,6 +253,8 @@ export class Game {
             }
             this.lastTime = currentTime - (deltaTime % this.frameTime);
         }
+        // Update performance monitoring
+        this.performanceMonitor.update(currentTime);
         this.gameLoop = requestAnimationFrame((time) => this.loop(time));
     }
     update(deltaTime) {
@@ -221,6 +282,11 @@ export class Game {
         this.renderer.render(this.gameState, this.frameTime);
         this.uiManager.updateUI(this.gameState);
         this.uiManager.updateScore(this.gameState.score, this.gameState.level, this.gameState.linesCleared);
+        // Update difficulty display
+        const difficultyState = this.gameLogic.getDifficultyState();
+        if (difficultyState) {
+            this.uiManager.updateDifficultyDisplay(difficultyState);
+        }
     }
     handleKeyDown(event) {
         switch (event.code) {
@@ -326,12 +392,14 @@ export class Game {
         // Reset game state with proper configuration
         this.ruleEngine = new RuleEngine(this.gameLogger, this.config);
         this.wordQueue = new WordQueue();
+        this.difficultyScaler = new DifficultyScaler(this.config, this.ruleEngine);
         this.initializeGameState();
         this.gameLogic = new GameLogic(this.gameState, this.ruleEngine, this.wordQueue, this.gameLogger);
         // Reconnect all dependencies that were lost
         this.gameLogic.setUIManager(this.uiManager);
         this.gameLogic.setEffectManager(this.renderer.getEffectManager());
         this.gameLogic.setAudioSystem(this.audioSystem);
+        this.gameLogic.setDifficultyScaler(this.difficultyScaler);
         // Reconfigure EffectManager with current settings
         this.renderer.getEffectManager().setConfig(this.config);
         // Reset game flags

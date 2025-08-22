@@ -1,6 +1,7 @@
 import { LAYOUT } from './types.js';
 import { TetrisPiece } from './TetrisPiece.js';
 import { RuleEffects } from './RuleEffects.js';
+import { EventEmitter } from './EventEmitter.js';
 export class GameLogic {
     constructor(gameState, ruleEngine, wordQueue, logger) {
         this.dropTimer = 0;
@@ -8,10 +9,12 @@ export class GameLogic {
         this.dropInterval = 1000; // Current drop interval
         this.spawnTimer = 0;
         this.spawnInterval = 5000; // 5 seconds for SPAWN blocks
+        this.isClearing = false;
         this.gameState = gameState;
         this.ruleEngine = ruleEngine;
         this.wordQueue = wordQueue;
         this.logger = logger;
+        this.eventEmitter = new EventEmitter(false); // Debug mode off by default
     }
     setUIManager(uiManager) {
         this.uiManager = uiManager;
@@ -25,9 +28,51 @@ export class GameLogic {
     setAudioSystem(audioSystem) {
         this.audioSystem = audioSystem;
     }
+    setDifficultyScaler(difficultyScaler) {
+        this.difficultyScaler = difficultyScaler;
+    }
+    /**
+     * Get the EventEmitter instance for external event subscription
+     */
+    getEventEmitter() {
+        return this.eventEmitter;
+    }
+    /**
+     * Subscribe to game logic events
+     */
+    on(event, listener) {
+        this.eventEmitter.on(event, listener);
+        return this;
+    }
+    /**
+     * Subscribe to game logic events (one-time)
+     */
+    once(event, listener) {
+        this.eventEmitter.once(event, listener);
+        return this;
+    }
+    /**
+     * Unsubscribe from game logic events
+     */
+    off(event, listener) {
+        this.eventEmitter.off(event, listener);
+        return this;
+    }
+    getDifficultyState() {
+        return this.difficultyScaler?.getState() || null;
+    }
     update(deltaTime) {
         if (this.gameState.gameOver || this.gameState.paused) {
             return;
+        }
+        // Update difficulty scaling
+        if (this.difficultyScaler) {
+            this.difficultyScaler.update({
+                level: this.gameState.level,
+                linesCleared: this.gameState.linesCleared
+            });
+            // Update drop interval based on difficulty
+            this.dropInterval = this.difficultyScaler.getDropInterval();
         }
         // Handle piece falling
         this.updatePieceFalling(deltaTime);
@@ -145,6 +190,14 @@ export class GameLogic {
         testPiece.move(-1, 0);
         if (this.isValidPosition(testPiece)) {
             this.gameState.currentPiece.move(-1, 0);
+            // Emit piece movement event
+            this.eventEmitter.emit('game:pieceMovement', {
+                timestamp: Date.now(),
+                source: 'GameLogic',
+                pieceType: this.gameState.currentPiece.type,
+                movement: 'left',
+                position: { x: this.gameState.currentPiece.position.x, y: this.gameState.currentPiece.position.y }
+            });
             return true;
         }
         return false;
@@ -156,6 +209,14 @@ export class GameLogic {
         testPiece.move(1, 0);
         if (this.isValidPosition(testPiece)) {
             this.gameState.currentPiece.move(1, 0);
+            // Emit piece movement event
+            this.eventEmitter.emit('game:pieceMovement', {
+                timestamp: Date.now(),
+                source: 'GameLogic',
+                pieceType: this.gameState.currentPiece.type,
+                movement: 'right',
+                position: { x: this.gameState.currentPiece.position.x, y: this.gameState.currentPiece.position.y }
+            });
             return true;
         }
         return false;
@@ -167,6 +228,14 @@ export class GameLogic {
         testPiece.move(0, 1);
         if (this.isValidPosition(testPiece)) {
             this.gameState.currentPiece.move(0, 1);
+            // Emit piece movement event
+            this.eventEmitter.emit('game:pieceMovement', {
+                timestamp: Date.now(),
+                source: 'GameLogic',
+                pieceType: this.gameState.currentPiece.type,
+                movement: 'drop',
+                position: { x: this.gameState.currentPiece.position.x, y: this.gameState.currentPiece.position.y }
+            });
             return true;
         }
         else {
@@ -182,6 +251,14 @@ export class GameLogic {
         testPiece.rotate(clockwise);
         if (this.isValidPosition(testPiece)) {
             this.gameState.currentPiece.rotate(clockwise);
+            // Emit piece movement event
+            this.eventEmitter.emit('game:pieceMovement', {
+                timestamp: Date.now(),
+                source: 'GameLogic',
+                pieceType: this.gameState.currentPiece.type,
+                movement: 'rotate',
+                position: { x: this.gameState.currentPiece.position.x, y: this.gameState.currentPiece.position.y }
+            });
             return true;
         }
         return false;
@@ -238,6 +315,14 @@ export class GameLogic {
         this.gameState.currentPiece = null;
         // Play piece drop sound
         this.audioSystem?.playSoundEffect('pieceDrop');
+        // Emit piece placement event
+        this.eventEmitter.emit('game:pieceMovement', {
+            timestamp: Date.now(),
+            source: 'GameLogic',
+            pieceType: worldBlocks.length > 0 ? 'placed' : 'unknown',
+            movement: 'place',
+            position: worldBlocks.length > 0 ? { x: worldBlocks[0].x, y: worldBlocks[0].y } : { x: 0, y: 0 }
+        });
         // Check for completed lines
         const completedLines = this.checkCompletedLines();
         if (completedLines.length > 0) {
@@ -252,6 +337,14 @@ export class GameLogic {
         // Check traditional game over condition
         if (this.isGameOver()) {
             this.gameState.gameOver = true;
+            // Emit game over event
+            this.eventEmitter.emit('game:stateChange', {
+                timestamp: Date.now(),
+                source: 'GameLogic',
+                changeType: 'gameOver',
+                oldValue: false,
+                newValue: true
+            });
         }
     }
     spawnNewPiece() {
@@ -295,29 +388,60 @@ export class GameLogic {
         return completedLines;
     }
     clearLines(lines) {
-        // Sort lines from bottom to top
+        // Set flag to prevent chain reactions during line clearing
+        this.isClearing = true;
+        // Sort lines from bottom to top for proper removal
         lines.sort((a, b) => b - a);
         // FIRST: Apply spell effects for blocks in cleared lines BEFORE removing them
-        console.log(`🔧 Checking for spell effects in ${lines.length} cleared lines...`);
+        console.log(`🔧 Checking for spell effects in ${lines.length} cleared lines: [${lines.join(', ')}]`);
         this.applySpellEffects(lines);
-        // THEN: Remove completed lines
+        // THEN: Remove completed lines (working from bottom to top to avoid index shifting issues)
+        console.log(`🗑️ Removing ${lines.length} lines in order: [${lines.join(', ')}]`);
         for (const lineIndex of lines) {
+            console.log(`🗑️ Removing line ${lineIndex}, playfield height before: ${this.gameState.playfield.length}`);
             this.gameState.playfield.splice(lineIndex, 1);
-            // Add new empty line at top
+            console.log(`🗑️ Playfield height after removing line ${lineIndex}: ${this.gameState.playfield.length}`);
+        }
+        // Add new empty lines at top (one for each removed line)
+        console.log(`➕ Adding ${lines.length} new empty lines at top`);
+        for (let i = 0; i < lines.length; i++) {
             const newLine = new Array(LAYOUT.PLAYFIELD_COLS).fill(null);
             this.gameState.playfield.unshift(newLine);
         }
+        console.log(`✅ Final playfield height: ${this.gameState.playfield.length}`);
         // Update game state
+        const oldScore = this.gameState.score;
+        const oldLevel = this.gameState.level;
+        const oldLinesCleared = this.gameState.linesCleared;
         this.gameState.linesCleared += lines.length;
         this.gameState.score += this.calculateScore(lines.length);
+        // Emit line clear event
+        this.eventEmitter.emit('game:lineClear', {
+            timestamp: Date.now(),
+            source: 'GameLogic',
+            linesCleared: lines.length,
+            lineNumbers: [...lines],
+            score: this.gameState.score - oldScore,
+            level: this.gameState.level,
+            totalLinesCleared: this.gameState.linesCleared
+        });
         // Play line clear sound
         this.audioSystem?.playSoundEffect('lineClear');
         // Update level every 10 lines and increase drop speed
         const newLevel = Math.floor(this.gameState.linesCleared / 10) + 1;
         if (newLevel > this.gameState.level) {
+            const oldLevel = this.gameState.level;
             this.gameState.level = newLevel;
             this.updateDropSpeed();
             console.log(`🎚️ Level up! Now at level ${this.gameState.level} (Drop speed increased)`);
+            // Emit level change event
+            this.eventEmitter.emit('game:stateChange', {
+                timestamp: Date.now(),
+                source: 'GameLogic',
+                changeType: 'level',
+                oldValue: oldLevel,
+                newValue: newLevel
+            });
         }
         // Consume words from queue and apply rule engine effects
         const wordsNeeded = Math.min(lines.length, 3);
@@ -330,6 +454,8 @@ export class GameLogic {
             this.audioSystem?.playSoundEffect('ruleFormation');
         }
         console.log(`Cleared ${lines.length} lines! Total: ${this.gameState.linesCleared}`);
+        // Reset flag after line clearing is complete
+        this.isClearing = false;
     }
     calculateScore(linesCleared) {
         const baseScore = [0, 100, 300, 500, 800]; // 0, 1, 2, 3, 4 lines
@@ -679,6 +805,16 @@ export class GameLogic {
             this.logger?.logThrottledEffect(spellName, { x: col, y: row }, { reason: 'Rate limit exceeded' });
             return;
         }
+        // Emit spell effect event (before execution)
+        this.eventEmitter.emit('game:spellEffect', {
+            timestamp: Date.now(),
+            source: 'GameLogic',
+            spellName,
+            position: { x: col, y: row },
+            intensity: 1.0,
+            affectedBlocks: [{ x: col, y: row, type: block.type }],
+            isComboEffect: false
+        });
         // Show spell effect canvas animation
         this.showSpellEffectCanvas(spellName, row, col);
         switch (spellName.toUpperCase()) {
@@ -705,6 +841,12 @@ export class GameLogic {
                 break;
             case 'HEAL':
                 this.executeHealSpell(row, col);
+                break;
+            case 'SINK':
+                this.executeSinkSpell(block, row, col);
+                break;
+            case 'FLOAT':
+                this.executeFloatSpell(block, row, col);
                 break;
             default:
                 // No special effect for this spell
@@ -773,6 +915,24 @@ export class GameLogic {
                     autoRemove: true
                 });
                 break;
+            case 'SINK':
+                this.effectManager.addEffect({
+                    type: 'sink',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 2000,
+                    autoRemove: true
+                });
+                break;
+            case 'FLOAT':
+                this.effectManager.addEffect({
+                    type: 'float',
+                    gridPosition,
+                    intensity: 1.1,
+                    duration: 2000,
+                    autoRemove: true
+                });
+                break;
             default:
                 // No additional canvas effect needed - BOMB and ACID already have canvas effects
                 break;
@@ -807,6 +967,15 @@ export class GameLogic {
                         }
                         console.log(`💥 Destroying block at (${col}, ${row})`);
                         affectedBlocks.push({ x: col, y: row, type: targetBlock.type });
+                        // Emit block transformation event
+                        this.eventEmitter.emit('game:blockTransformation', {
+                            timestamp: Date.now(),
+                            source: 'GameLogic',
+                            transformationType: 'destruction',
+                            position: { x: col, y: row },
+                            before: { type: targetBlock.type, color: targetBlock.color },
+                            ruleCause: 'BOMB'
+                        });
                         // Add crumbling brick effect for WALL blocks
                         if (targetBlock.type === 'WALL' && this.effectManager) {
                             this.effectManager.addEffect({
@@ -834,6 +1003,7 @@ export class GameLogic {
     }
     executeLightningSpell(row, col) {
         console.log(`⚡⚡⚡ DEVASTATING LIGHTNING STRIKE across row ${row}! ⚡⚡⚡`);
+        this.audioSystem?.playSoundEffect('lightning');
         let destroyedCount = 0;
         let destroyedTypes = [];
         // Destroy all blocks in the row
@@ -852,8 +1022,8 @@ export class GameLogic {
             }
         }
         console.log(`⚡ LIGHTNING DEVASTATION: Annihilated entire row ${row}! ${destroyedCount} blocks turned to ash: ${destroyedTypes.join(', ')}`);
-        // Lightning can trigger chain reactions in adjacent rows
-        if (destroyedCount >= 8) { // If nearly full row destroyed
+        // Lightning can trigger chain reactions in adjacent rows (but not during line clearing)
+        if (destroyedCount >= 8 && !this.isClearing) { // If nearly full row destroyed and not during line clearing
             console.log(`⚡ LIGHTNING OVERCHARGE: Massive destruction triggers electrical cascade!`);
             // Trigger lightning in random adjacent row
             const adjacentRows = [row - 1, row + 1].filter(r => r >= 0 && r < LAYOUT.PLAYFIELD_ROWS);
@@ -866,6 +1036,7 @@ export class GameLogic {
     }
     executeAcidSpell(row, col) {
         console.log(`🧪🧪🧪 CORROSIVE ACID BATH dissolving blocks below (${col}, ${row})! 🧪🧪🧪`);
+        this.audioSystem?.playSoundEffect('acid');
         // Trigger acid drip visual effect
         if (this.effectManager) {
             this.effectManager.addEffect({
@@ -920,6 +1091,7 @@ export class GameLogic {
     }
     executeMagnetSpell(centerRow, centerCol) {
         console.log(`🧲 MAGNET pulling blocks toward (${centerCol}, ${centerRow})`);
+        this.audioSystem?.playSoundEffect('magnet');
         // Pull blocks from surrounding area toward center
         // This is a simplified implementation
         for (let row = centerRow - 2; row <= centerRow + 2; row++) {
@@ -946,11 +1118,13 @@ export class GameLogic {
     }
     executeHealSpell(centerRow, centerCol) {
         console.log(`💚 HEAL spell restoring blocks around (${centerCol}, ${centerRow})`);
+        this.audioSystem?.playSoundEffect('heal');
         // Heal effect could restore previously destroyed blocks or strengthen existing ones
         // For now, just log the effect
     }
     executeMultiplySpell(originalBlock, row, col) {
         console.log(`🔄 MULTIPLY creating copy of block from (${col}, ${row})`);
+        this.audioSystem?.playSoundEffect('multiply');
         // Find a random empty spot to place the copy
         const emptySpots = [];
         for (let r = 0; r < LAYOUT.PLAYFIELD_ROWS; r++) {
@@ -969,6 +1143,7 @@ export class GameLogic {
     }
     executeTransformSpell(block, centerRow, centerCol) {
         console.log(`🔮 TRANSFORM changing adjacent blocks around (${centerCol}, ${centerRow})`);
+        this.audioSystem?.playSoundEffect('transform');
         // Change adjacent blocks to match this block's type
         for (let row = centerRow - 1; row <= centerRow + 1; row++) {
             for (let col = centerCol - 1; col <= centerCol + 1; col++) {
@@ -987,6 +1162,7 @@ export class GameLogic {
     }
     executeTeleportSpell(block, row, col) {
         console.log(`🌀 TELEPORT swapping block at (${col}, ${row})`);
+        this.audioSystem?.playSoundEffect('teleport');
         // Find all non-empty positions for potential swap
         const occupiedPositions = [];
         for (let r = 0; r < LAYOUT.PLAYFIELD_ROWS; r++) {
@@ -1012,6 +1188,40 @@ export class GameLogic {
             block.y = swapPos.y;
             console.log(`🌀 Teleport swapped (${col}, ${row}) with (${swapPos.x}, ${swapPos.y})`);
         }
+    }
+    executeSinkSpell(block, row, col) {
+        console.log(`🕳️ Executing SINK spell at (${col}, ${row})`);
+        this.audioSystem?.playSoundEffect('sink');
+        // Trigger canvas effect
+        if (this.effectManager) {
+            this.effectManager.addEffect({
+                type: 'sink',
+                gridPosition: { x: col * 32, y: row * 32 },
+                intensity: 1.1,
+                duration: 2000,
+                autoRemove: true
+            });
+        }
+        // Remove the block with sinking animation
+        this.gameState.playfield[row][col] = null;
+        console.log(`🕳️ Block sunk at (${col}, ${row})`);
+    }
+    executeFloatSpell(block, row, col) {
+        console.log(`🎈 Executing FLOAT spell at (${col}, ${row})`);
+        this.audioSystem?.playSoundEffect('float');
+        // Trigger canvas effect
+        if (this.effectManager) {
+            this.effectManager.addEffect({
+                type: 'float',
+                gridPosition: { x: col * 32, y: row * 32 },
+                intensity: 1.1,
+                duration: 2000,
+                autoRemove: true
+            });
+        }
+        // Remove the block with floating animation
+        this.gameState.playfield[row][col] = null;
+        console.log(`🎈 Block floated away at (${col}, ${row})`);
     }
     hasSpellProperty(block, spellName) {
         return this.gameState.rules.some(rule => (rule.noun === 'BLOCK' || rule.noun === block.type.toUpperCase()) &&

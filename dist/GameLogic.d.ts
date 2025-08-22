@@ -1,9 +1,11 @@
 import { GameState } from './types.js';
 import { RuleEngine } from './RuleEngine.js';
 import { WordQueue } from './WordQueue.js';
+import { DifficultyScaler } from './DifficultyScaler.js';
 import type { GameLogger } from './GameLogger.js';
 import type { EffectManager } from './EffectManager.js';
 import type { AudioSystem } from './AudioSystem.js';
+import { EventEmitter, EventMap } from './EventEmitter.js';
 export declare class GameLogic {
     private dropTimer;
     private baseDropInterval;
@@ -17,11 +19,31 @@ export declare class GameLogic {
     private uiManager?;
     private effectManager?;
     private audioSystem?;
+    private difficultyScaler?;
+    private eventEmitter;
     constructor(gameState: GameState, ruleEngine: RuleEngine, wordQueue: WordQueue, logger?: GameLogger);
     setUIManager(uiManager: any): void;
     setRuleEngine(ruleEngine: RuleEngine): void;
     setEffectManager(effectManager: EffectManager): void;
     setAudioSystem(audioSystem: AudioSystem): void;
+    setDifficultyScaler(difficultyScaler: DifficultyScaler): void;
+    /**
+     * Get the EventEmitter instance for external event subscription
+     */
+    getEventEmitter(): EventEmitter<EventMap>;
+    /**
+     * Subscribe to game logic events
+     */
+    on<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this;
+    /**
+     * Subscribe to game logic events (one-time)
+     */
+    once<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this;
+    /**
+     * Unsubscribe from game logic events
+     */
+    off<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this;
+    getDifficultyState(): import("./DifficultyScaler.js").DifficultyState | null;
     update(deltaTime: number): void;
     private updatePieceFalling;
     private updateSpawnBlocks;
@@ -39,6 +61,7 @@ export declare class GameLogic {
     private calculateScore;
     private updateDropSpeed;
     private isGameOver;
+    private isClearing;
     setDropSpeed(level: number): void;
     addTestBlocks(): void;
     addBombTestBlocks(): void;
@@ -60,6 +83,8 @@ export declare class GameLogic {
     private executeMultiplySpell;
     private executeTransformSpell;
     private executeTeleportSpell;
+    private executeSinkSpell;
+    private executeFloatSpell;
     private hasSpellProperty;
     private checkRuleBasedGameEnd;
     private isWinConditionMet;

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicEventSubscriber Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        .test-section {
+            background: #2d2d2d;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .test-button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #005a9e;
+        }
+        .output {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border: 1px solid #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #2d5016;
+            border: 1px solid #4caf50;
+        }
+        .status.error {
+            background: #5d1a1a;
+            border: 1px solid #f44336;
+        }
+        .status.info {
+            background: #1a3c5d;
+            border: 1px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <h1>MusicEventSubscriber Test</h1>
+    <p>Testing the MusicEventSubscriber class functionality with mock RuleEngine and GameLogic events.</p>
+
+    <div class="test-section">
+        <h2>Initialization Test</h2>
+        <button class="test-button" onclick="testInitialization()">Test Initialization</button>
+        <div id="init-status" class="status info">Ready to test initialization</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Event Subscription Test</h2>
+        <button class="test-button" onclick="testSubscription()">Test Event Subscription</button>
+        <div id="subscription-status" class="status info">Ready to test subscription</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Event Processing Test</h2>
+        <button class="test-button" onclick="testRuleEvent()">Test Rule Event</button>
+        <button class="test-button" onclick="testGameEvent()">Test Game Event</button>
+        <button class="test-button" onclick="testSpellEvent()">Test Spell Effect</button>
+        <button class="test-button" onclick="testDebouncing()">Test Debouncing</button>
+        <div id="event-status" class="status info">Ready to test event processing</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Configuration Test</h2>
+        <button class="test-button" onclick="testConfiguration()">Test Configuration Update</button>
+        <div id="config-status" class="status info">Ready to test configuration</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Cleanup Test</h2>
+        <button class="test-button" onclick="testCleanup()">Test Cleanup</button>
+        <div id="cleanup-status" class="status info">Ready to test cleanup</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Output</h2>
+        <div id="output" class="output">Test output will appear here...\n</div>
+        <button class="test-button" onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <script type="module">
+        import { MusicEventSubscriber, DEFAULT_MUSIC_EVENT_CONFIG } from './dist/audio/MusicEventSubscriber.js';
+        import { EventEmitter } from './dist/EventEmitter.js';
+
+        let subscriber = null;
+        let mockRuleEngine = null;
+        let mockGameLogic = null;
+        let testOutput = '';
+
+        function log(message) {
+            testOutput += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            document.getElementById('output').textContent = testOutput;
+            console.log(message);
+        }
+
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        // Create mock EventEmitter implementations
+        function createMockRuleEngine() {
+            const emitter = new EventEmitter(true);
+            return {
+                getEventEmitter: () => emitter,
+                emitter: emitter
+            };
+        }
+
+        function createMockGameLogic() {
+            const emitter = new EventEmitter(true);
+            return {
+                getEventEmitter: () => emitter,
+                emitter: emitter
+            };
+        }
+
+        window.testInitialization = function() {
+            try {
+                log('Testing MusicEventSubscriber initialization...');
+                
+                const config = {
+                    ...DEFAULT_MUSIC_EVENT_CONFIG,
+                    enableDebugLogging: true,
+                    debounceDelayMs: 100
+                };
+                
+                subscriber = new MusicEventSubscriber(config);
+                
+                // Test initial state
+                const currentState = subscriber.getCurrentMusicState();
+                const currentIntensity = subscriber.getCurrentIntensity();
+                const isSubscribed = subscriber.isActivelySubscribed();
+                
+                log(`Initial state: ${currentState}`);
+                log(`Initial intensity: ${currentIntensity}`);
+                log(`Is subscribed: ${isSubscribed}`);
+                
+                if (currentState === 'idle' && currentIntensity === 0.0 && !isSubscribed) {
+                    updateStatus('init-status', 'Initialization test passed!', 'success');
+                    log('✅ Initialization test completed successfully');
+                } else {
+                    throw new Error('Initial state not as expected');
+                }
+                
+            } catch (error) {
+                log(`❌ Initialization test failed: ${error.message}`);
+                updateStatus('init-status', `Initialization test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testSubscription = function() {
+            try {
+                log('Testing event subscription...');
+                
+                if (!subscriber) {
+                    throw new Error('Subscriber not initialized. Run initialization test first.');
+                }
+                
+                // Create mock engines
+                mockRuleEngine = createMockRuleEngine();
+                mockGameLogic = createMockGameLogic();
+                
+                // Register callback to track events
+                let eventCount = 0;
+                subscriber.registerCallback((eventType, eventData, musicAction) => {
+                    eventCount++;
+                    log(`Event received: ${eventType}, action: ${musicAction.type}`);
+                });
+                
+                // Subscribe to events
+                subscriber.subscribe(mockRuleEngine, mockGameLogic);
+                
+                const isSubscribed = subscriber.isActivelySubscribed();
+                const queueStatus = subscriber.getQueueStatus();
+                
+                log(`Subscription status: ${isSubscribed}`);
+                log(`Queue status: ${JSON.stringify(queueStatus)}`);
+                
+                if (isSubscribed) {
+                    updateStatus('subscription-status', 'Subscription test passed!', 'success');
+                    log('✅ Subscription test completed successfully');
+                } else {
+                    throw new Error('Subscription failed');
+                }
+                
+            } catch (error) {
+                log(`❌ Subscription test failed: ${error.message}`);
+                updateStatus('subscription-status', `Subscription test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testRuleEvent = function() {
+            try {
+                log('Testing rule event processing...');
+                
+                if (!subscriber || !mockRuleEngine) {
+                    throw new Error('Setup not complete. Run previous tests first.');
+                }
+                
+                // Emit a rule creation event
+                const ruleEvent = {
+                    timestamp: Date.now(),
+                    source: 'test',
+                    rule: {
+                        id: 'test-rule-1',
+                        noun: 'BABA',
+                        property: 'YOU',
+                        priority: 1,
+                        source: 'base'
+                    }
+                };
+                
+                mockRuleEngine.emitter.emit('rule:created', ruleEvent);
+                
+                // Wait for debouncing
+                setTimeout(() => {
+                    const state = subscriber.getCurrentMusicState();
+                    log(`Music state after rule event: ${state}`);
+                    updateStatus('event-status', 'Rule event test completed', 'success');
+                }, 200);
+                
+                log('✅ Rule event emitted');
+                
+            } catch (error) {
+                log(`❌ Rule event test failed: ${error.message}`);
+                updateStatus('event-status', `Rule event test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testGameEvent = function() {
+            try {
+                log('Testing game event processing...');
+                
+                if (!subscriber || !mockGameLogic) {
+                    throw new Error('Setup not complete. Run previous tests first.');
+                }
+                
+                // Emit a line clear event
+                const lineClearEvent = {
+                    timestamp: Date.now(),
+                    source: 'test',
+                    linesCleared: 2,
+                    lineNumbers: [18, 19],
+                    score: 200,
+                    level: 1,
+                    totalLinesCleared: 5
+                };
+                
+                mockGameLogic.emitter.emit('game:lineClear', lineClearEvent);
+                
+                // Wait for debouncing
+                setTimeout(() => {
+                    const intensity = subscriber.getCurrentIntensity();
+                    log(`Intensity after line clear: ${intensity.toFixed(2)}`);
+                    updateStatus('event-status', 'Game event test completed', 'success');
+                }, 200);
+                
+                log('✅ Game event emitted');
+                
+            } catch (error) {
+                log(`❌ Game event test failed: ${error.message}`);
+                updateStatus('event-status', `Game event test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testSpellEvent = function() {
+            try {
+                log('Testing spell effect event processing...');
+                
+                if (!subscriber || !mockGameLogic) {
+                    throw new Error('Setup not complete. Run previous tests first.');
+                }
+                
+                // Emit a spell effect event
+                const spellEvent = {
+                    timestamp: Date.now(),
+                    source: 'test',
+                    spellName: 'BOMB',
+                    position: { x: 5, y: 10 },
+                    intensity: 0.8,
+                    affectedBlocks: [
+                        { x: 5, y: 10, type: 'I' },
+                        { x: 6, y: 10, type: 'T' }
+                    ],
+                    isComboEffect: false
+                };
+                
+                mockGameLogic.emitter.emit('game:spellEffect', spellEvent);
+                
+                // Wait for debouncing
+                setTimeout(() => {
+                    const state = subscriber.getCurrentMusicState();
+                    const intensity = subscriber.getCurrentIntensity();
+                    log(`State after spell: ${state}, Intensity: ${intensity.toFixed(2)}`);
+                    updateStatus('event-status', 'Spell event test completed', 'success');
+                }, 200);
+                
+                log('✅ Spell event emitted');
+                
+            } catch (error) {
+                log(`❌ Spell event test failed: ${error.message}`);
+                updateStatus('event-status', `Spell event test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testDebouncing = function() {
+            try {
+                log('Testing event debouncing...');
+                
+                if (!subscriber || !mockGameLogic) {
+                    throw new Error('Setup not complete. Run previous tests first.');
+                }
+                
+                let eventCount = 0;
+                const testCallback = (eventType, eventData, musicAction) => {
+                    if (eventType === 'game:pieceMovement') {
+                        eventCount++;
+                    }
+                };
+                
+                subscriber.registerCallback(testCallback);
+                
+                // Emit multiple rapid events
+                for (let i = 0; i < 5; i++) {
+                    const moveEvent = {
+                        timestamp: Date.now(),
+                        source: 'test',
+                        pieceType: 'T',
+                        movement: 'rotate',
+                        position: { x: 5, y: i }
+                    };
+                    
+                    mockGameLogic.emitter.emit('game:pieceMovement', moveEvent);
+                }
+                
+                log('Emitted 5 rapid rotation events');
+                
+                // Wait for debouncing to complete
+                setTimeout(() => {
+                    log(`Events processed after debouncing: ${eventCount} (should be 1)`);
+                    if (eventCount === 1) {
+                        updateStatus('event-status', 'Debouncing test passed!', 'success');
+                        log('✅ Debouncing test completed successfully');
+                    } else {
+                        updateStatus('event-status', `Debouncing test failed: ${eventCount} events processed`, 'error');
+                    }
+                    
+                    subscriber.removeCallback(testCallback);
+                }, 400);
+                
+            } catch (error) {
+                log(`❌ Debouncing test failed: ${error.message}`);
+                updateStatus('event-status', `Debouncing test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testConfiguration = function() {
+            try {
+                log('Testing configuration updates...');
+                
+                if (!subscriber) {
+                    throw new Error('Subscriber not initialized. Run initialization test first.');
+                }
+                
+                // Update configuration
+                const newConfig = {
+                    debounceDelayMs: 500,
+                    enableDebugLogging: false,
+                    eventFilters: {
+                        minSpellIntensity: 0.5
+                    }
+                };
+                
+                subscriber.updateConfig(newConfig);
+                
+                log('Configuration updated successfully');
+                updateStatus('config-status', 'Configuration test passed!', 'success');
+                log('✅ Configuration test completed successfully');
+                
+            } catch (error) {
+                log(`❌ Configuration test failed: ${error.message}`);
+                updateStatus('config-status', `Configuration test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testCleanup = function() {
+            try {
+                log('Testing cleanup and disposal...');
+                
+                if (!subscriber) {
+                    throw new Error('Subscriber not initialized. Run initialization test first.');
+                }
+                
+                // Test unsubscribe
+                subscriber.unsubscribe();
+                
+                let isSubscribed = subscriber.isActivelySubscribed();
+                log(`Subscription status after unsubscribe: ${isSubscribed}`);
+                
+                // Test dispose
+                subscriber.dispose();
+                
+                log('Cleanup completed successfully');
+                updateStatus('cleanup-status', 'Cleanup test passed!', 'success');
+                log('✅ Cleanup test completed successfully');
+                
+                // Reset for potential retesting
+                subscriber = null;
+                mockRuleEngine = null;
+                mockGameLogic = null;
+                
+            } catch (error) {
+                log(`❌ Cleanup test failed: ${error.message}`);
+                updateStatus('cleanup-status', `Cleanup test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.clearOutput = function() {
+            testOutput = '';
+            document.getElementById('output').textContent = 'Test output cleared...\n';
+        };
+
+        // Initialize page
+        log('MusicEventSubscriber test page loaded');
+        log('Click the test buttons to run individual tests');
+    </script>
+</body>
+</html>

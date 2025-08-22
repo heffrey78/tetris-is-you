@@ -1,0 +1,12 @@
+{
+  "model": "CYBER_80.safetensors",
+  "prompt": "dog toy",
+  "negative_prompt": "bad quality, blurry",
+  "steps": 15,
+  "cfg": 7.0,
+  "sampler": "euler",
+  "width": 512,
+  "height": 512,
+  "seed": -1,
+  "download_dir": "~/"
+}

@@ -18,6 +18,8 @@ export interface GameConfig {
         multiply: number;
         heal: number;
         transform: number;
+        sink: number;
+        float: number;
     };
     
     // Game progression settings
@@ -25,6 +27,27 @@ export interface GameConfig {
         baseDropInterval: number;
         speedIncreasePerLevel: number;
         linesPerLevel: number;
+    };
+    
+    // Difficulty scaling settings
+    difficultyScaling: {
+        mode: 'speed' | 'chaos' | 'hybrid';
+        speedScaling: {
+            enabled: boolean;
+            maxSpeedMultiplier: number;
+            speedIncreaseCurve: 'linear' | 'exponential';
+        };
+        chaosScaling: {
+            enabled: boolean;
+            newRuleFrequency: number;      // Lines between new rules
+            maxActiveRules: number;        // Maximum rules active at once
+            complexityProgression: number; // How quickly rules become complex
+        };
+        visualIndicator: {
+            enabled: boolean;
+            showLevel: boolean;
+            showDifficultyName: boolean;
+        };
     };
     
     // Visual settings
@@ -53,6 +76,19 @@ export interface GameConfig {
     };
 }
 
+// Game event types for CustomEvent system
+export type GameEventType = 'speedChange' | 'performanceAdjustment';
+
+// Event detail interfaces
+export interface SpeedChangeEventDetail {
+    oldSpeed: number;
+    newSpeed: number;
+    dropInterval: number;
+    speedChange: number;
+    level: number;
+    difficultyName: string;
+}
+
 // Default configuration
 export const DEFAULT_CONFIG: GameConfig = {
     initialRules: [
@@ -73,13 +109,35 @@ export const DEFAULT_CONFIG: GameConfig = {
         teleport: 1000,     // 1 second (quick effect)
         multiply: 1500,     // 1.5 seconds
         heal: 1000,         // 1 second (quick positive effect)
-        transform: 2000     // 2 seconds
+        transform: 2000,    // 2 seconds
+        sink: 2000,         // 2 seconds
+        float: 2000         // 2 seconds
     },
     
     progression: {
         baseDropInterval: 1000,      // 1 second
         speedIncreasePerLevel: 0.9,  // 10% faster each level
         linesPerLevel: 10            // Level up every 10 lines
+    },
+    
+    difficultyScaling: {
+        mode: 'hybrid',
+        speedScaling: {
+            enabled: true,
+            maxSpeedMultiplier: 5.0,     // Up to 5x speed
+            speedIncreaseCurve: 'exponential'
+        },
+        chaosScaling: {
+            enabled: true,
+            newRuleFrequency: 25,        // New rule every 25 lines
+            maxActiveRules: 8,           // Maximum of 8 active rules
+            complexityProgression: 1.2   // 20% more complex each time
+        },
+        visualIndicator: {
+            enabled: true,
+            showLevel: true,
+            showDifficultyName: true
+        }
     },
     
     visual: {
@@ -118,6 +176,21 @@ export const DIFFICULTY_CONFIGS = {
             ...DEFAULT_CONFIG.spellDurations,
             explosion: 3000,    // Longer duration for easier gameplay
             acidBath: 3000
+        },
+        difficultyScaling: {
+            ...DEFAULT_CONFIG.difficultyScaling,
+            mode: 'speed',
+            speedScaling: {
+                enabled: true,
+                maxSpeedMultiplier: 3.0,
+                speedIncreaseCurve: 'linear'
+            },
+            chaosScaling: {
+                enabled: false,
+                newRuleFrequency: 50,
+                maxActiveRules: 4,
+                complexityProgression: 1.1
+            }
         }
     },
     
@@ -137,6 +210,21 @@ export const DIFFICULTY_CONFIGS = {
             ...DEFAULT_CONFIG.spellDurations,
             explosion: 1000,    // Shorter duration for more challenge
             acidBath: 1500
+        },
+        difficultyScaling: {
+            ...DEFAULT_CONFIG.difficultyScaling,
+            mode: 'chaos',
+            speedScaling: {
+                enabled: true,
+                maxSpeedMultiplier: 8.0,
+                speedIncreaseCurve: 'exponential'
+            },
+            chaosScaling: {
+                enabled: true,
+                newRuleFrequency: 15,
+                maxActiveRules: 12,
+                complexityProgression: 1.5
+            }
         }
     }
 };

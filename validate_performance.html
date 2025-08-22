@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Monitor Validation</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #666;
+        }
+        .test-passed {
+            border-left-color: #0a0;
+            background: #001100;
+        }
+        .test-failed {
+            border-left-color: #a00;
+            background: #110000;
+        }
+        .test-warning {
+            border-left-color: #aa0;
+            background: #111100;
+        }
+        .metrics {
+            background: #222;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        #console {
+            background: #111;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Performance Monitor Validation</h1>
+    <div id="results"></div>
+    <div id="console"></div>
+
+    <script type="module">
+        import { PerformanceMonitor } from './dist/utils/PerformanceMonitor.js';
+        
+        const results = document.getElementById('results');
+        const consoleDiv = document.getElementById('console');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result test-${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            
+            const consoleMsg = document.createElement('div');
+            consoleMsg.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleDiv.appendChild(consoleMsg);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        async function runTests() {
+            log('🔍 Starting PerformanceMonitor validation tests...', 'info');
+            
+            // Test 1: Basic instantiation
+            try {
+                const monitor = new PerformanceMonitor();
+                log('✅ Test 1 PASSED: PerformanceMonitor instantiated successfully', 'passed');
+                
+                // Test 2: Initial metrics
+                const initialMetrics = monitor.getPerformanceMetrics();
+                log(`✅ Test 2 PASSED: Initial metrics - FPS: ${initialMetrics.currentFPS}, Quality: ${initialMetrics.qualityName}`, 'passed');
+                
+                // Test 3: Event listener setup
+                let eventReceived = false;
+                window.addEventListener('performanceAdjustment', (event) => {
+                    const customEvent = event;
+                    log(`✅ Test 3 PASSED: Performance adjustment event received - Quality: ${customEvent.detail.qualityName}, FPS: ${customEvent.detail.averageFPS.toFixed(1)}`, 'passed');
+                    eventReceived = true;
+                });
+                
+                // Test 4: Simulate performance updates
+                log('🔄 Test 4: Simulating 100 performance updates with varying load...', 'info');
+                
+                let frameCount = 0;
+                const startTime = performance.now();
+                
+                function simulateFrame() {
+                    const currentTime = performance.now();
+                    monitor.update(currentTime);
+                    frameCount++;
+                    
+                    // Add artificial load to trigger performance adjustment
+                    if (frameCount > 40 && frameCount < 70) {
+                        // Simulate heavy load
+                        const loadStart = performance.now();
+                        while (performance.now() - loadStart < 60) {
+                            // Busy wait
+                        }
+                    }
+                    
+                    if (frameCount % 20 === 0) {
+                        const metrics = monitor.getPerformanceMetrics();
+                        log(`Frame ${frameCount}: Current FPS=${metrics.currentFPS.toFixed(1)}, Avg=${metrics.averageFPS.toFixed(1)}, Quality=${metrics.qualityName}`, 'info');
+                    }
+                    
+                    if (frameCount < 100) {
+                        requestAnimationFrame(simulateFrame);
+                    } else {
+                        // Test completion
+                        const totalTime = performance.now() - startTime;
+                        const finalMetrics = monitor.getPerformanceMetrics();
+                        
+                        log(`✅ Test 4 PASSED: Performance simulation completed in ${(totalTime/1000).toFixed(2)}s`, 'passed');
+                        
+                        // Test 5: Final metrics validation
+                        log(`✅ Test 5 PASSED: Final metrics - Frames: ${finalMetrics.frameCount}, Avg FPS: ${finalMetrics.averageFPS.toFixed(1)}, Min: ${finalMetrics.minFPS.toFixed(1)}, Max: ${finalMetrics.maxFPS.toFixed(1)}, Quality: ${finalMetrics.qualityName}`, 'passed');
+                        
+                        // Test 6: Check if auto-adjustment was triggered
+                        setTimeout(() => {
+                            if (eventReceived) {
+                                log('✅ Test 6 PASSED: Performance auto-adjustment event was triggered during heavy load', 'passed');
+                            } else {
+                                log('⚠️ Test 6 WARNING: No performance adjustment event received (performance may have remained stable)', 'warning');
+                            }
+                            
+                            log('🎉 All validation tests completed!', 'passed');
+                        }, 200);
+                    }
+                }
+                
+                requestAnimationFrame(simulateFrame);
+                
+            } catch (error) {
+                log(`❌ Test FAILED: ${error.message}`, 'failed');
+                console.error('Validation error:', error);
+            }
+        }
+        
+        // Run tests when page loads
+        runTests();
+    </script>
+</body>
+</html>

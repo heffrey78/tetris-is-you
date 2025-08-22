@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio System Test</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-panel {
+            background: #222;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #444;
+        }
+        .audio-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .spell-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        button {
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        button:hover {
+            background: #555;
+        }
+        button.spell {
+            background: #660066;
+        }
+        button.spell:hover {
+            background: #880088;
+        }
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .volume-slider {
+            flex: 1;
+            height: 20px;
+        }
+        .status {
+            background: #333;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+        .log {
+            background: #111;
+            padding: 10px;
+            border-radius: 3px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio System Test</h1>
+    
+    <div class="test-panel">
+        <h3>Audio System Status</h3>
+        <div class="status" id="audioStatus">
+            Initializing...
+        </div>
+        
+        <div class="volume-control">
+            <label>Master Volume:</label>
+            <input type="range" id="masterVolume" class="volume-slider" min="0" max="1" step="0.1" value="0.7">
+            <span id="masterVolumeValue">0.7</span>
+        </div>
+        
+        <div class="volume-control">
+            <label>SFX Volume:</label>
+            <input type="range" id="sfxVolume" class="volume-slider" min="0" max="1" step="0.1" value="0.8">
+            <span id="sfxVolumeValue">0.8</span>
+        </div>
+        
+        <div class="audio-controls">
+            <button onclick="initializeAudio()">Initialize Audio</button>
+            <button onclick="playMusic()">Play Music</button>
+            <button onclick="stopMusic()">Stop Music</button>
+            <button onclick="testAllSounds()">Test All Sounds</button>
+        </div>
+    </div>
+    
+    <div class="test-panel">
+        <h3>Core Sound Effects</h3>
+        <div class="audio-controls">
+            <button onclick="playEffect('pieceDrop')">Piece Drop</button>
+            <button onclick="playEffect('pieceRotate')">Piece Rotate</button>
+            <button onclick="playEffect('lineClear')">Line Clear</button>
+            <button onclick="playEffect('ruleFormation')">Rule Formation</button>
+            <button onclick="playEffect('blockTransformation')">Block Transform</button>
+            <button onclick="playEffect('menuClick')">Menu Click</button>
+            <button onclick="playEffect('error')">Error</button>
+            <button onclick="playEffect('success')">Success</button>
+        </div>
+    </div>
+    
+    <div class="test-panel">
+        <h3>Spell Effect Sounds</h3>
+        <div class="spell-controls">
+            <button class="spell" onclick="playEffect('bombExplosion')">💥 BOMB</button>
+            <button class="spell" onclick="playEffect('lightning')">⚡ LIGHTNING</button>
+            <button class="spell" onclick="playEffect('acid')">🧪 ACID</button>
+            <button class="spell" onclick="playEffect('heal')">💚 HEAL</button>
+            <button class="spell" onclick="playEffect('teleport')">🌀 TELEPORT</button>
+            <button class="spell" onclick="playEffect('multiply')">🔄 MULTIPLY</button>
+            <button class="spell" onclick="playEffect('magnet')">🧲 MAGNET</button>
+            <button class="spell" onclick="playEffect('transform')">🔮 TRANSFORM</button>
+            <button class="spell" onclick="playEffect('sink')">🕳️ SINK</button>
+            <button class="spell" onclick="playEffect('float')">🎈 FLOAT</button>
+        </div>
+    </div>
+    
+    <div class="test-panel">
+        <h3>Event Log</h3>
+        <div class="log" id="eventLog">
+            Audio system test ready...
+        </div>
+    </div>
+
+    <script type="module">
+        import { AudioSystem } from './dist/AudioSystem.js';
+        
+        let audioSystem = null;
+        
+        function log(message) {
+            const logElement = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('audioStatus').textContent = message;
+        }
+        
+        window.initializeAudio = async function() {
+            try {
+                log('🔊 Initializing audio system...');
+                audioSystem = new AudioSystem();
+                await audioSystem.resumeContext();
+                
+                updateStatus('✅ Audio system initialized and ready');
+                log('✅ Audio system initialized successfully');
+                
+                // Set up volume controls
+                setupVolumeControls();
+                
+            } catch (error) {
+                updateStatus('❌ Audio initialization failed');
+                log(`❌ Audio initialization failed: ${error.message}`);
+            }
+        };
+        
+        function setupVolumeControls() {
+            const masterVolume = document.getElementById('masterVolume');
+            const sfxVolume = document.getElementById('sfxVolume');
+            const masterVolumeValue = document.getElementById('masterVolumeValue');
+            const sfxVolumeValue = document.getElementById('sfxVolumeValue');
+            
+            masterVolume.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                masterVolumeValue.textContent = value.toFixed(1);
+                if (audioSystem) {
+                    audioSystem.setMasterVolume(value);
+                    log(`🔊 Master volume set to ${value.toFixed(1)}`);
+                }
+            });
+            
+            sfxVolume.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                sfxVolumeValue.textContent = value.toFixed(1);
+                if (audioSystem) {
+                    audioSystem.setSFXVolume(value);
+                    log(`🔊 SFX volume set to ${value.toFixed(1)}`);
+                }
+            });
+        }
+        
+        window.playMusic = function() {
+            if (!audioSystem) {
+                log('❌ Audio system not initialized');
+                return;
+            }
+            
+            audioSystem.playMusic();
+            log('🎵 Music started');
+        };
+        
+        window.stopMusic = function() {
+            if (!audioSystem) {
+                log('❌ Audio system not initialized');
+                return;
+            }
+            
+            audioSystem.stopMusic();
+            log('🎵 Music stopped');
+        };
+        
+        window.playEffect = function(effectName) {
+            if (!audioSystem) {
+                log('❌ Audio system not initialized');
+                return;
+            }
+            
+            audioSystem.playSoundEffect(effectName);
+            log(`🔊 Played sound effect: ${effectName}`);
+        };
+        
+        window.testAllSounds = function() {
+            if (!audioSystem) {
+                log('❌ Audio system not initialized');
+                return;
+            }
+            
+            const sounds = [
+                'pieceDrop', 'pieceRotate', 'lineClear', 'ruleFormation',
+                'bombExplosion', 'lightning', 'acid', 'heal', 'teleport',
+                'multiply', 'magnet', 'transform', 'sink', 'float'
+            ];
+            
+            log('🔊 Testing all sound effects...');
+            
+            let index = 0;
+            const playNext = () => {
+                if (index < sounds.length) {
+                    const sound = sounds[index];
+                    audioSystem.playSoundEffect(sound);
+                    log(`🔊 Testing: ${sound}`);
+                    index++;
+                    setTimeout(playNext, 1000);
+                } else {
+                    log('✅ All sound effects tested');
+                }
+            };
+            
+            playNext();
+        };
+        
+        // Initialize audio system on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Audio system test page loaded');
+            updateStatus('Click "Initialize Audio" to start');
+        });
+        
+        // Handle user interaction requirement for audio
+        document.addEventListener('click', async () => {
+            if (!audioSystem) {
+                await initializeAudio();
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

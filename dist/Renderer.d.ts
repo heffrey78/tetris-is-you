@@ -22,6 +22,9 @@ export declare class Renderer {
     private drawEnhancedBorder;
     private drawPatternOverlay;
     private applyAnimationEffect;
+    private easeInOutQuad;
+    private easeInQuad;
+    private easeOutQuad;
     private getApplicableRuleProperties;
     private colorToString;
     getGridPosition(pixelX: number, pixelY: number): Position;

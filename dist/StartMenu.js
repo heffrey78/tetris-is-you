@@ -1,5 +1,4 @@
 import { DEFAULT_CONFIG } from './GameConfig.js';
-import { AudioSystem } from './AudioSystem.js';
 export class StartMenu {
     constructor() {
         this.selectedRules = new Set();
@@ -38,13 +37,6 @@ export class StartMenu {
         this.ruleGrid = document.getElementById('ruleGrid');
         this.startGameBtn = document.getElementById('startGameBtn');
         this.resetRulesBtn = document.getElementById('resetRulesBtn');
-        this.audioSystem = new AudioSystem({
-            masterVolume: 0.5,
-            musicVolume: 0.3,
-            sfxVolume: 0.7,
-            enableMusic: false, // Don't play music in menu
-            enableSFX: true
-        });
         this.initializeDefaultRules();
         this.setupEventListeners();
         this.renderRuleOptions();
@@ -58,13 +50,9 @@ export class StartMenu {
     }
     setupEventListeners() {
         this.startGameBtn.addEventListener('click', async () => {
-            await this.audioSystem.resumeContext();
-            this.audioSystem.playSoundEffect('success');
             this.startGame();
         });
         this.resetRulesBtn.addEventListener('click', async () => {
-            await this.audioSystem.resumeContext();
-            this.audioSystem.playSoundEffect('menuClick');
             this.resetToDefault();
         });
     }
@@ -105,18 +93,15 @@ export class StartMenu {
     }
     async toggleRule(ruleKey, ruleDiv) {
         const checkbox = ruleDiv.querySelector('.rule-checkbox');
-        await this.audioSystem.resumeContext();
         if (this.selectedRules.has(ruleKey)) {
             this.selectedRules.delete(ruleKey);
             ruleDiv.classList.remove('selected');
             checkbox.checked = false;
-            this.audioSystem.playSoundEffect('menuClick');
         }
         else {
             this.selectedRules.add(ruleKey);
             ruleDiv.classList.add('selected');
             checkbox.checked = true;
-            this.audioSystem.playSoundEffect('menuClick');
         }
         // Validate rule combinations
         this.validateRuleSelection();
@@ -129,7 +114,6 @@ export class StartMenu {
         if (!hasBlockSolid || !hasWallStop) {
             startBtn.disabled = true;
             startBtn.textContent = 'Need Essential Rules';
-            this.audioSystem.playSoundEffect('error');
         }
         else {
             startBtn.disabled = false;

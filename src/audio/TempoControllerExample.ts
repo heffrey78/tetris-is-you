@@ -24,10 +24,10 @@ export class TempoControllerExample {
         this.tempoController = new TempoController(audioContext, tempoConfig);
         
         // Listen for speed change events from DifficultyScaler
-        window.addEventListener('speedChange', this.handleSpeedChange.bind(this));
+        window.addEventListener('speedChange', this.handleSpeedChange.bind(this) as EventListener);
         
         // Listen for tempo change events
-        window.addEventListener('tempoChange', this.handleTempoChange.bind(this));
+        window.addEventListener('tempoChange', this.handleTempoChange.bind(this) as EventListener);
         
         console.log('🎵 TempoControllerExample initialized');
     }
@@ -184,8 +184,8 @@ export class TempoControllerExample {
      * Cleanup
      */
     public dispose(): void {
-        window.removeEventListener('speedChange', this.handleSpeedChange.bind(this));
-        window.removeEventListener('tempoChange', this.handleTempoChange.bind(this));
+        window.removeEventListener('speedChange', this.handleSpeedChange.bind(this) as EventListener);
+        window.removeEventListener('tempoChange', this.handleTempoChange.bind(this) as EventListener);
         
         this.tempoController.dispose();
         

@@ -1,6 +1,7 @@
 import { Rule, WordQueueItem, GameState, RuleConflict, EffectThrottle } from './types.js';
 import { GameConfig } from './GameConfig.js';
 import type { GameLogger } from './GameLogger.js';
+import { EventEmitter, EventMap } from './EventEmitter.js';
 export declare class RuleEngine {
     private rules;
     private ruleCounter;
@@ -8,9 +9,26 @@ export declare class RuleEngine {
     private effectThrottles;
     private logger?;
     private config;
+    private eventEmitter;
     private readonly PRIORITY_LEVELS;
     constructor(logger?: GameLogger, config?: GameConfig);
     setLogger(logger: GameLogger): void;
+    /**
+     * Get the EventEmitter instance for external event subscription
+     */
+    getEventEmitter(): EventEmitter<EventMap>;
+    /**
+     * Subscribe to rule engine events
+     */
+    on<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this;
+    /**
+     * Subscribe to rule engine events (one-time)
+     */
+    once<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this;
+    /**
+     * Unsubscribe from rule engine events
+     */
+    off<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): this;
     private initializeBasicRules;
     addRule(noun: string, property: string): string;
     addRuleWithPriority(noun: string, property: string, priority: number, source: 'base' | 'line-clear' | 'fusion'): string;

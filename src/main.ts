@@ -1,6 +1,5 @@
 import { Game } from './Game.js';
 import { ConfigLoader } from './ConfigLoader.js';
-import { StartMenu } from './StartMenu.js';
 import { GameConfig } from './GameConfig.js';
 
 // Initialize the application when the page loads
@@ -13,25 +12,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     let game: Game | null = null;
     const configLoader = ConfigLoader.getInstance();
     
-    // Initialize start menu
-    const startMenu = new StartMenu();
+    // Setup start game functionality for the existing HTML start menu
+    const startGameBtn = document.getElementById('startGameBtn');
+    const startMenu = document.getElementById('startMenu');
     
-    // Setup start menu callback
-    startMenu.setOnStartGame(async (config: GameConfig) => {
-        // Save the selected configuration
-        configLoader.updateConfig(config);
-        configLoader.saveConfigToStorage();
-        
-        // Initialize and start the game
-        game = new Game(canvas, config);
-        await game.start();
-        
-        // Setup game input handlers
-        setupGameInput(game);
-    });
-    
-    // Show the start menu initially
-    startMenu.show();
+    if (startGameBtn && startMenu) {
+        startGameBtn.addEventListener('click', async () => {
+            // Use default configuration for now
+            const config = configLoader.getCurrentConfig();
+            
+            // Hide start menu
+            startMenu.classList.add('hidden');
+            
+            // Initialize and start the game
+            game = new Game(canvas, config);
+            await game.start();
+            
+            // Setup game input handlers
+            setupGameInput(game);
+        });
+    }
     
     function setupGameInput(gameInstance: Game): void {
         // Handle keyboard input
@@ -67,7 +67,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 updateDifficultyDisplay('hard');
             } else if (event.key === 'Escape') {
                 // Show start menu again
-                startMenu.show();
+                if (startMenu) {
+                    startMenu.classList.remove('hidden');
+                }
             }
         });
     }

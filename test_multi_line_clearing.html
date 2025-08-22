@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Line Clearing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-instructions {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .test-steps {
+            background-color: #f1f8e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .bug-description {
+            background-color: #fff3e0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .fix-description {
+            background-color: #e8f5e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .code-block {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Multi-Line Clearing Bug Fix Test</h1>
+        
+        <div class="bug-description">
+            <h2>🐛 Bug Description</h2>
+            <p><strong>Issue:</strong> Multi-line clearing was not working correctly. When two or more lines should be cleared simultaneously, the bottom line would not clear properly due to array index shifting issues.</p>
+            <p><strong>Root Cause:</strong> The line removal logic was flawed - it was removing lines one by one while adding new empty lines after each removal, causing array index shifting. When clearing lines [18, 19], after removing line 18, the original line 19 became line 18, but the code still tried to remove index 19.</p>
+        </div>
+
+        <div class="fix-description">
+            <h2>🔧 Fix Applied</h2>
+            <p>Fixed the multi-line clearing synchronization issue with two key changes:</p>
+            <div class="code-block">
+                <strong>Changes made in GameLogic.ts:</strong><br>
+                1. <strong>Fixed line removal logic:</strong> Separated line removal from empty line addition<br>
+                   - Remove all completed lines first (bottom to top to avoid index shifting)<br>
+                   - Then add all new empty lines at the top in a separate loop<br>
+                2. <strong>Added debugging:</strong> Enhanced console logging to track the clearing process<br>
+                3. <strong>Existing chain reaction prevention:</strong> The <code>isClearing</code> flag prevents spell chain reactions during line clearing
+            </div>
+        </div>
+
+        <div class="test-instructions">
+            <h2>🧪 How to Test the Fix</h2>
+            <p>Start the game and use the following test scenarios to verify multi-line clearing works correctly:</p>
+        </div>
+
+        <div class="test-steps">
+            <h3>Test Scenario 1: Basic Multi-Line Clearing</h3>
+            <ol>
+                <li>Press <code>T</code> to add test blocks (creates 3 almost-complete lines)</li>
+                <li>Use the current piece to complete 2 or more lines simultaneously</li>
+                <li><strong>Expected:</strong> All completed lines should clear at the same time</li>
+                <li><strong>Before fix:</strong> Lines would clear one at a time with delays</li>
+            </ol>
+
+            <h3>Test Scenario 2: Multi-Line with Spell Effects</h3>
+            <ol>
+                <li>Press <code>2</code> to add bomb test blocks</li>
+                <li>Complete multiple lines that contain spell-effect blocks</li>
+                <li><strong>Expected:</strong> All lines clear simultaneously despite spell effects</li>
+                <li><strong>Before fix:</strong> Chain reactions would cause delayed line clearing</li>
+            </ol>
+
+            <h3>Test Scenario 3: Lightning Chain Reaction Test</h3>
+            <ol>
+                <li>Create a scenario with lightning blocks in multiple lines</li>
+                <li>Complete multiple lines with lightning blocks</li>
+                <li><strong>Expected:</strong> Lines clear immediately, chain reactions happen after</li>
+                <li><strong>Before fix:</strong> Chain reactions would interfere with line clearing timing</li>
+            </ol>
+
+            <h3>Test Scenario 4: Simulated Multi-Line Clear</h3>
+            <ol>
+                <li>Press <code>2</code>, <code>3</code>, or <code>4</code> to simulate 2, 3, or 4 line clears</li>
+                <li><strong>Expected:</strong> All simulated lines process simultaneously</li>
+                <li>Check console for timing logs</li>
+            </ol>
+        </div>
+
+        <div class="test-instructions">
+            <h2>📋 Test Results Checklist</h2>
+            <ul>
+                <li>☐ Multiple lines clear simultaneously (not sequentially)</li>
+                <li>☐ No delay between clearing different lines</li>
+                <li>☐ Spell effects don't interfere with line clearing timing</li>
+                <li>☐ Chain reactions happen after line clearing is complete</li>
+                <li>☐ Console logs show proper timing sequence</li>
+            </ul>
+        </div>
+
+        <div class="test-instructions">
+            <h2>🚀 Starting the Game</h2>
+            <p>To test the fix, run the following commands:</p>
+            <div class="code-block">
+                npm run build<br>
+                npm start
+            </div>
+            <p>Then navigate to <code>http://localhost:3000</code> in your browser.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -13,7 +13,6 @@ export declare class StartMenu {
     private resetRulesBtn;
     private selectedRules;
     private onStartGame?;
-    private audioSystem;
     private ruleOptions;
     constructor();
     private initializeDefaultRules;

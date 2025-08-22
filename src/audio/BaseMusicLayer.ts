@@ -11,8 +11,8 @@ import {
     CrossfadeConfig,
     LayerEvent,
     LayerEventCallback 
-} from '../types/MusicTypes';
-import { PerformanceMonitor, PerformanceMetrics } from '../utils/PerformanceMonitor';
+} from '../types/MusicTypes.js';
+import { PerformanceMonitor, PerformanceMetrics } from '../utils/PerformanceMonitor.js';
 
 /**
  * Configuration for oscillator synthesis

@@ -15,11 +15,32 @@ export interface GameConfig {
         multiply: number;
         heal: number;
         transform: number;
+        sink: number;
+        float: number;
     };
     progression: {
         baseDropInterval: number;
         speedIncreasePerLevel: number;
         linesPerLevel: number;
+    };
+    difficultyScaling: {
+        mode: 'speed' | 'chaos' | 'hybrid';
+        speedScaling: {
+            enabled: boolean;
+            maxSpeedMultiplier: number;
+            speedIncreaseCurve: 'linear' | 'exponential';
+        };
+        chaosScaling: {
+            enabled: boolean;
+            newRuleFrequency: number;
+            maxActiveRules: number;
+            complexityProgression: number;
+        };
+        visualIndicator: {
+            enabled: boolean;
+            showLevel: boolean;
+            showDifficultyName: boolean;
+        };
     };
     visual: {
         enableEnhancedEffects: boolean;
@@ -41,6 +62,15 @@ export interface GameConfig {
         maxConcurrentEffects: number;
     };
 }
+export type GameEventType = 'speedChange' | 'performanceAdjustment';
+export interface SpeedChangeEventDetail {
+    oldSpeed: number;
+    newSpeed: number;
+    dropInterval: number;
+    speedChange: number;
+    level: number;
+    difficultyName: string;
+}
 export declare const DEFAULT_CONFIG: GameConfig;
 export declare const DIFFICULTY_CONFIGS: {
     EASY: {
@@ -60,6 +90,27 @@ export declare const DIFFICULTY_CONFIGS: {
             multiply: number;
             heal: number;
             transform: number;
+            sink: number;
+            float: number;
+        };
+        difficultyScaling: {
+            mode: string;
+            speedScaling: {
+                enabled: boolean;
+                maxSpeedMultiplier: number;
+                speedIncreaseCurve: string;
+            };
+            chaosScaling: {
+                enabled: boolean;
+                newRuleFrequency: number;
+                maxActiveRules: number;
+                complexityProgression: number;
+            };
+            visualIndicator: {
+                enabled: boolean;
+                showLevel: boolean;
+                showDifficultyName: boolean;
+            };
         };
         progression: {
             baseDropInterval: number;
@@ -104,6 +155,27 @@ export declare const DIFFICULTY_CONFIGS: {
             multiply: number;
             heal: number;
             transform: number;
+            sink: number;
+            float: number;
+        };
+        difficultyScaling: {
+            mode: string;
+            speedScaling: {
+                enabled: boolean;
+                maxSpeedMultiplier: number;
+                speedIncreaseCurve: string;
+            };
+            chaosScaling: {
+                enabled: boolean;
+                newRuleFrequency: number;
+                maxActiveRules: number;
+                complexityProgression: number;
+            };
+            visualIndicator: {
+                enabled: boolean;
+                showLevel: boolean;
+                showDifficultyName: boolean;
+            };
         };
         progression: {
             baseDropInterval: number;
